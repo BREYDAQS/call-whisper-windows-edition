@@ -96,10 +96,8 @@ function render() {
   $("title").textContent = s.title || "brqs-whisper";
 
   // szyna
-  const importBtn = $("r-import");
-  importBtn.querySelector("span").textContent = s.isProcessing ? "Przerwij" : "Importuj";
-  importBtn.querySelector("use").setAttribute("href", s.isProcessing ? "#i-close" : "#i-import");
-  importBtn.disabled = s.isRunning;
+  // Przerwanie importu / rozpoznawania głosów — w pasku stanu, tylko gdy coś trwa.
+  $("cancel").classList.toggle("hidden", !s.isProcessing);
   $("r-hints").classList.toggle("selected", !!settings.assistantEnabled);
   $("r-hints").title = settings.assistantEnabled ? `Podpowiedzi włączone: ${s.assistantLabel}` : "Podpowiedzi wyłączone. Kliknij, żeby włączyć.";
   $("r-overlay").classList.toggle("selected", !!s.overlayVisible);
@@ -252,7 +250,7 @@ async function saveAs(kind) {
   flash("Zapisano");
 }
 
-$("r-import").onclick = () => state.isProcessing ? invoke("cancel_processing") : importFile();
+$("cancel").onclick = () => invoke("cancel_processing");
 $("empty-import").onclick = () => importFile();
 $("r-hints").onclick = () => saveSettings({ assistantEnabled: !settings.assistantEnabled });
 $("r-overlay").onclick = () => invoke("toggle_overlay");

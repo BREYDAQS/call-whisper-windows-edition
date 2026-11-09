@@ -33,9 +33,6 @@
 
   <nav class="rail">
     <div class="rail-section first">Nagrania</div>
-    <button class="rail-item" id="r-import" title="Transkrybuj nagranie albo wideo (mp4, mov, m4a, mp3, wav). Można też upuścić plik na transkrypt.">
-      <div class="pill"><svg class="icon"><use href="#i-import"/></svg></div><span>Importuj</span>
-    </button>
     <button class="rail-item" id="r-folder" title="Folder z transkryptami (.md) — każda rozmowa i import zapisują się tam same">
       <div class="pill"><svg class="icon"><use href="#i-folder"/></svg></div><span>Folder</span>
     </button>
@@ -126,6 +123,7 @@
     <div class="status">
       <span class="dot hidden" id="rec-dot"></span>
       <span class="grow" id="status">Gotowy</span>
+      <button class="btn-text hidden" id="cancel" title="Przerwij import albo rozpoznawanie głosów">Przerwij</button>
       <span class="info hidden" id="update"></span>
       <span class="ok hidden" id="flash"></span>
       <span class="bad hidden" id="error"></span>
