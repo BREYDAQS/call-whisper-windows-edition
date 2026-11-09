@@ -42,6 +42,10 @@ pub struct Config {
     pub language_code: String,
     pub identify_speakers: bool,
     pub vocabulary: String,
+    /// Rundy przyrostowe (tekst w trakcie mówienia). Wyłączone = tylko wersja
+    /// ostateczna po końcu wypowiedzi: jedno przejście modelu na wypowiedź
+    /// zamiast jednego co 1,2 s (na macOS ~8 % rdzenia -> ~2 %).
+    pub live_preview: bool,
 }
 
 /// Uchwyt do działającego łańcucha.
@@ -146,6 +150,7 @@ const CUT_GRACE_MS: f64 = 8_000.0;
 struct State {
     source: AudioSource,
     identify_speakers: bool,
+    live_preview: bool,
     framer: Framer,
     diarizer: Diarizer,
     diar_rx: std::sync::mpsc::Receiver<DiarEvent>,
@@ -206,6 +211,7 @@ impl State {
         Self {
             source: config.source,
             identify_speakers: config.identify_speakers,
+            live_preview: config.live_preview,
             framer,
             diarizer,
             diar_rx,
@@ -333,6 +339,9 @@ impl State {
         let Some(u) = &self.utterance else { return };
         if self.ring.newest_ms() - u.start_ms >= MAX_UTTERANCE_MS {
             self.diarizer.flush(self.last_frame_ms);
+            return;
+        }
+        if !self.live_preview {
             return;
         }
         if self.in_flight.as_ref().is_some_and(|t| !t.is_finished()) {
@@ -571,6 +580,7 @@ mod tests {
                 language_code: "pl".into(),
                 identify_speakers: false,
                 vocabulary: "React, Next.js".into(),
+                live_preview: true,
             },
             events_tx,
         );

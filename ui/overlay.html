@@ -59,6 +59,7 @@
     $("ask").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } });
     $("send").onclick = send;
     $("close").onclick = () => invoke("toggle_overlay");
+    setInterval(() => tickPending($("answers")), 500);
 
     (async () => {
       render(await invoke("get_state"));

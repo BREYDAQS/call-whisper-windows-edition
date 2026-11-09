@@ -41,6 +41,7 @@
     let shownId = null;
     let hideAt = 0;
     let hovered = false;
+    let lastAnswer = "";
 
     // Ile trzeba, żeby przeczytać odpowiedź na głos: ~2,5 słowa na sekundę
     // plus zapas na start. Krócej niż 8 s nie ma sensu.
@@ -67,7 +68,9 @@
       $("hint").classList.toggle("hidden", !showHint);
       if (showHint) {
         $("q").textContent = latest.question;
-        $("a").innerHTML = latest.status === "error" ? escapeHtml(latest.error ?? "Błąd") : markdown(latest.answer || "…");
+        // Tylko gdy treść się zmieniła — render leci co 500 ms dla zegara.
+        const html = latest.status === "error" ? escapeHtml(latest.error ?? "Błąd") : markdown(latest.answer || "…");
+        if (html !== lastAnswer) { lastAnswer = html; $("a").innerHTML = html; }
       }
       resize(showHint);
     }

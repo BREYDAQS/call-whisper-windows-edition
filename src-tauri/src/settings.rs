@@ -48,6 +48,9 @@ pub struct Settings {
     pub top_bar: bool,
     pub auto_update: bool,
     pub api_key: String,
+    /// Tekst wypowiedzi w trakcie mówienia. Domyślnie nie: tekst po końcu
+    /// wypowiedzi, za to kilka razy mniej pracy dla CPU/GPU.
+    pub live_preview: bool,
 }
 
 impl Default for Settings {
@@ -79,6 +82,7 @@ impl Default for Settings {
             top_bar: true,
             auto_update: true,
             api_key: String::new(),
+            live_preview: false,
         }
     }
 }

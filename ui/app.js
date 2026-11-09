@@ -199,7 +199,7 @@ function renderAnswers() {
   for (const item of state.answers) box.appendChild(answerCard(item));
 }
 // Licznik sekund przy oczekujących odpowiedziach.
-setInterval(() => { if (state.answers.some((a) => a.status === "pending")) renderAnswers(); }, 500);
+setInterval(() => tickPending($("answers")), 500);
 
 function toggleSelection(id, shift) {
   const ids = state.segments.map((s) => s.id);
@@ -418,6 +418,7 @@ const fields = [
   { section: "Rozmowa" },
   { key: "language", label: "Język mowy", type: "select", options: [["pl-PL", "polski"], ["en-US", "angielski (US)"], ["en-GB", "angielski (UK)"], ["de-DE", "niemiecki"]] },
   { key: "whisperModel", label: "Model whisper", type: "select", options: "models" },
+  { key: "livePreview", label: "Tekst na żywo w trakcie mówienia", type: "bool", hint: "Wypowiedź przepisywana co 1,2 s, zanim się skończy. Wyłączone: tekst po końcu wypowiedzi i kilka razy mniej obciążenia." },
   { key: "whisperVocabulary", label: "Słownictwo (nazwy, technologie)", type: "text", hint: "Podawane whisperowi jako podpowiedź: „React, Next.js, Kubernetes”." },
   { key: "identifySpeakers", label: "Rozpoznawaj, kto mówi", type: "bool" },
   { key: "diarizeAfter", label: "Rozpoznawaj głosy po rozmowie (sieć neuronowa)", type: "bool" },

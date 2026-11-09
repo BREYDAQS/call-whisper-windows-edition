@@ -21,6 +21,14 @@ function markdown(text) {
 
 // Karta pytania i odpowiedzi. Przy oczekiwaniu licznik sekund: przez most
 // do Claude Code odpowiedź potrafi iść 5 s i bez licznika wygląda to na zawieszenie.
+// Licznik przy oczekujących: zmieniamy sam tekst, zamiast przebudowywać
+// listę co pół sekundy (to restartowało też animację paska).
+function tickPending(root) {
+  for (const el of root.querySelectorAll("[data-since]")) {
+    el.textContent = `${Math.max(0, Math.round((Date.now() - Number(el.dataset.since)) / 1000))} s`;
+  }
+}
+
 function answerCard(item) {
   const el = document.createElement("div");
   el.className = "answer";
@@ -28,7 +36,7 @@ function answerCard(item) {
   let body;
   if (item.status === "pending") {
     const secs = Math.max(0, Math.round((Date.now() - item.at) / 1000));
-    body = `<div style="display:flex;gap:8px;align-items:center"><div class="progress"></div><small>${secs} s</small></div>`;
+    body = `<div style="display:flex;gap:8px;align-items:center"><div class="progress"></div><small data-since="${item.at}">${secs} s</small></div>`;
   } else if (item.status === "error") {
     body = `<div class="err">${escapeHtml(item.error ?? "Błąd")}</div>`;
   } else {

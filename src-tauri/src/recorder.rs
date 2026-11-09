@@ -447,6 +447,7 @@ impl Recorder {
                     language_code: settings.language_code(),
                     identify_speakers: settings.identify_speakers,
                     vocabulary: vocabulary.clone(),
+                    live_preview: settings.live_preview,
                 },
                 events_tx.clone(),
             );

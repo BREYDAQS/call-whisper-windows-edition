@@ -124,7 +124,9 @@ main { flex: 1; display: flex; flex-direction: column; min-width: 0; padding-rig
 .answer small { color: var(--on-surface-variant); font-size: 11px; font-variant-numeric: tabular-nums; }
 .progress { height: 4px; width: 80px; border-radius: 2px; background: var(--primary-container); overflow: hidden; position: relative; }
 .progress::after { content: ""; position: absolute; inset: 0; width: 40%; background: var(--primary); animation: slide 1.2s infinite ease-in-out; }
-@keyframes slide { from { left: -40%; } to { left: 100%; } }
+/* transform, nie `left`: animacja na kompozytorze, bez przeliczania układu co klatkę. */
+@keyframes slide { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+@keyframes slide30 { from { transform: translateX(-100%); } to { transform: translateX(334%); } }
 
 .question { padding: 12px; }
 .question .attachment { display: flex; align-items: center; gap: 12px; padding: 8px; margin-bottom: 8px; border: 1px solid var(--outline-variant); border-radius: var(--r-md); }
@@ -148,7 +150,7 @@ main { flex: 1; display: flex; flex-direction: column; min-width: 0; padding-rig
 .status .bad { color: var(--error); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 50%; }
 .status .info { color: var(--primary); }
 .linear { height: 4px; margin: 0 4px; border-radius: 2px; background: var(--primary-container); overflow: hidden; position: relative; }
-.linear::after { content: ""; position: absolute; inset: 0; width: 30%; background: var(--primary); animation: slide 1.4s infinite ease-in-out; }
+.linear::after { content: ""; position: absolute; inset: 0; width: 30%; background: var(--primary); animation: slide30 1.4s infinite ease-in-out; }
 
 /* --- okna dialogowe (gotowość, ustawienia) --- */
 dialog { border: 0; border-radius: var(--r-xl); background: var(--card); color: var(--on-surface); padding: 24px; width: min(560px, 90vw); max-height: 85vh; }
