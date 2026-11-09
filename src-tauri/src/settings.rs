@@ -51,6 +51,16 @@ pub struct Settings {
     /// Tekst wypowiedzi w trakcie mówienia. Domyślnie nie: tekst po końcu
     /// wypowiedzi, za to kilka razy mniej pracy dla CPU/GPU.
     pub live_preview: bool,
+    /// Dyktowanie skrótem do dowolnego pola (port z macOS). Domyślnie wył.
+    pub dictation_enabled: bool,
+    /// `push` = trzymaj skrót i mów; `toggle` = naciśnij: start / stop.
+    pub dictation_mode: String,
+    /// Akcelerator jak „Ctrl+J”, „Ctrl+Shift+D”, „F9”.
+    pub dictation_hotkey: String,
+    /// Osobny od rozmowy: krótkie wypowiedzi, więc stać nas na dokładniejszy.
+    pub dictation_model: String,
+    /// Wyciszanie dźwięku systemu na czas nagrywania.
+    pub dictation_mute_system: bool,
 }
 
 impl Default for Settings {
@@ -83,6 +93,11 @@ impl Default for Settings {
             auto_update: true,
             api_key: String::new(),
             live_preview: false,
+            dictation_enabled: false,
+            dictation_mode: "push".into(),
+            dictation_hotkey: "Ctrl+J".into(),
+            dictation_model: "large-v3-turbo".into(),
+            dictation_mute_system: false,
         }
     }
 }

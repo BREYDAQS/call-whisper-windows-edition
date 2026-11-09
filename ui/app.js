@@ -496,6 +496,128 @@ $("settings-save").onclick = async () => {
   $("settings-dialog").close();
 };
 
+// --- dyktowanie ---
+
+let dict = null; // widok z Rusta (`dictation::View`)
+let capturing = false;
+
+// Klawisz z KeyboardEvent.code w zapisie akceleratora: KeyJ -> J, Digit1 -> 1.
+function keyName(code) {
+  if (/^Key[A-Z]$/.test(code)) return code.slice(3);
+  if (/^Digit\d$/.test(code)) return code.slice(5);
+  if (/^F\d{1,2}$/.test(code)) return code;
+  const named = { Space: "Space", Enter: "Enter", Tab: "Tab", Backspace: "Backspace", Insert: "Insert", Delete: "Delete",
+    Home: "Home", End: "End", PageUp: "PageUp", PageDown: "PageDown", ArrowUp: "Up", ArrowDown: "Down",
+    ArrowLeft: "Left", ArrowRight: "Right", Backquote: "Backquote", Minus: "Minus", Equal: "Equal",
+    BracketLeft: "BracketLeft", BracketRight: "BracketRight", Semicolon: "Semicolon", Quote: "Quote",
+    Comma: "Comma", Period: "Period", Slash: "Slash", Backslash: "Backslash" };
+  return named[code] ?? null;
+}
+
+async function captureHotkey(on) {
+  capturing = on;
+  $("d-hotkey").classList.toggle("capturing", on);
+  $("d-hotkey").textContent = on ? "Naciśnij skrót…" : (dict?.hotkey ?? "Ctrl+J");
+  await invoke("dictation_capture", { on });
+}
+
+document.addEventListener("keydown", async (e) => {
+  if (!capturing) return;
+  e.preventDefault();
+  e.stopPropagation();
+  if (["Control", "Shift", "Alt", "Meta"].includes(e.key)) return;
+  if (e.key === "Escape" && !e.ctrlKey && !e.altKey && !e.shiftKey) { await captureHotkey(false); return; }
+  const key = keyName(e.code);
+  const mods = [e.ctrlKey && "Ctrl", e.altKey && "Alt", e.shiftKey && "Shift", e.metaKey && "Super"].filter(Boolean);
+  if (!key || (mods.length === 0 && !/^F\d{1,2}$/.test(key))) {
+    $("d-hotkey-error").textContent = "Dodaj modyfikator (Ctrl, Alt, Shift) albo użyj klawisza F.";
+    $("d-hotkey-error").classList.remove("hidden");
+    return;
+  }
+  capturing = false;
+  $("d-hotkey").classList.remove("capturing");
+  try {
+    await invoke("dictation_set_hotkey", { hotkey: [...mods, key].join("+") });
+  } catch (err) {
+    $("d-hotkey-error").textContent = String(err);
+    $("d-hotkey-error").classList.remove("hidden");
+    await invoke("dictation_capture", { on: false });
+  }
+}, true);
+
+function renderDictation() {
+  if (!dict || !$("dictation-dialog").open) return;
+  $("d-enabled").checked = dict.enabled;
+  $("d-mode").value = dict.mode;
+  $("d-mute").checked = dict.muteSystem;
+  if (!capturing) $("d-hotkey").textContent = dict.hotkey;
+  $("d-hotkey-reset").classList.toggle("hidden", dict.hotkey === "Ctrl+J" || capturing);
+  $("d-lamp").classList.toggle("on", dict.hotkeyHeld);
+  const err = dict.hotkeyError;
+  if (err) { $("d-hotkey-error").textContent = err; $("d-hotkey-error").classList.remove("hidden"); }
+  $("d-test").disabled = dict.testing;
+  $("d-test").textContent = dict.testing ? "Słucham 3 s… mów teraz" : "Nagraj próbę (3 s)";
+  const result = $("d-test-result");
+  result.classList.toggle("hidden", !dict.testResult);
+  result.classList.toggle("bad", !!dict.testResult?.startsWith("✗"));
+  result.textContent = dict.testResult ?? "";
+  renderDictationChecks();
+}
+
+let checksPending = false;
+async function renderDictationChecks() {
+  if (checksPending) return;
+  checksPending = true;
+  try {
+    const checks = await invoke("dictation_checks");
+    const list = $("d-checks");
+    list.innerHTML = "";
+    for (const c of checks) {
+      const row = document.createElement("div");
+      row.className = "check-row";
+      row.innerHTML = `<span>${c.ok ? "✅" : "⚠️"}</span><div class="grow"><b>${escapeHtml(c.title)}</b><small>${escapeHtml(c.detail)}</small></div>`;
+      if (!c.ok && c.action) {
+        const b = document.createElement("button");
+        b.className = "btn-text";
+        b.textContent = c.actionLabel;
+        b.onclick = () => invoke("dictation_action", { action: c.action });
+        row.appendChild(b);
+      }
+      list.appendChild(row);
+    }
+  } finally {
+    checksPending = false;
+  }
+}
+
+async function showDictation() {
+  const models = await invoke("models");
+  const select = $("d-model");
+  select.innerHTML = "";
+  for (const m of models) {
+    const o = document.createElement("option");
+    o.value = m.id;
+    o.textContent = `${m.id} — ${m.note}${m.installed ? "" : " (do pobrania)"}`;
+    select.appendChild(o);
+  }
+  select.value = settings.dictationModel;
+  $("d-hotkey-error").classList.add("hidden");
+  dict = await invoke("dictation_state");
+  $("dictation-dialog").showModal();
+  renderDictation();
+}
+
+$("r-dictation").onclick = showDictation;
+$("dictation-close").onclick = async () => { if (capturing) await captureHotkey(false); $("dictation-dialog").close(); };
+$("dictation-dialog").addEventListener("close", () => { if (capturing) captureHotkey(false); });
+$("d-hotkey").onclick = () => captureHotkey(!capturing);
+$("d-hotkey-reset").onclick = () => invoke("dictation_set_hotkey", { hotkey: "Ctrl+J" });
+$("d-enabled").onchange = (e) => saveSettings({ dictationEnabled: e.target.checked });
+$("d-mode").onchange = (e) => saveSettings({ dictationMode: e.target.value });
+$("d-mute").onchange = (e) => saveSettings({ dictationMuteSystem: e.target.checked });
+$("d-model").onchange = (e) => saveSettings({ dictationModel: e.target.value });
+$("d-test").onclick = () => invoke("dictation_test");
+
 // --- start ---
 
 (async () => {
@@ -505,6 +627,7 @@ $("settings-save").onclick = async () => {
   render();
   await listen("state", (e) => { state = e.payload; render(); });
   await listen("settings", (e) => { settings = e.payload; render(); });
+  await listen("dictation", (e) => { dict = e.payload; renderDictation(); });
   // Braki pokazujemy od razu po otwarciu, a nie dopiero błędem po „Słuchaj".
   if (state.readinessOk === false) showReadiness();
 })();

@@ -1,6 +1,7 @@
 mod assistant;
 mod audio;
 mod diarization;
+mod dictation;
 mod media_import;
 mod meetings;
 mod model_downloader;
@@ -40,6 +41,7 @@ async fn save_settings(
     settings.save().map_err(|e| e.to_string())?;
     *rec.settings.lock().unwrap() = settings.clone();
     rec.sync_obs();
+    app.state::<Arc<dictation::Dictation>>().sync();
     let _ = app.emit("settings", &settings);
     rec.publish();
     Ok(settings)
@@ -200,6 +202,50 @@ async fn toggle_overlay(app: tauri::AppHandle, rec: Rec<'_>) -> Result<bool, Str
     Ok(visible)
 }
 
+// --- dyktowanie ---
+
+type Dict<'a> = State<'a, Arc<dictation::Dictation>>;
+
+#[tauri::command]
+fn dictation_state(d: Dict) -> dictation::View {
+    d.view()
+}
+
+#[tauri::command]
+fn dictation_checks(d: Dict) -> Vec<Check> {
+    d.checks()
+}
+
+#[tauri::command]
+async fn dictation_action(d: Dict<'_>, action: String) -> Result<(), String> {
+    match action.as_str() {
+        "download" => d.inner().download_model().await,
+        "prewarm" => d.inner().prewarm(),
+        _ => {}
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn dictation_capture(d: Dict, on: bool) {
+    d.inner().set_capturing(on);
+}
+
+#[tauri::command]
+fn dictation_set_hotkey(d: Dict, hotkey: String) -> Result<(), String> {
+    d.inner().set_hotkey(hotkey)
+}
+
+#[tauri::command]
+fn dictation_toggle_mute(d: Dict) {
+    d.inner().toggle_mute();
+}
+
+#[tauri::command]
+fn dictation_test(d: Dict) {
+    d.inner().run_test();
+}
+
 #[tauri::command]
 fn place_topbar(app: tauri::AppHandle, width: f64, height: f64) {
     windows::place_topbar(&app, width, height);
@@ -299,6 +345,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
             let vendor = app
                 .path()
@@ -306,8 +353,11 @@ pub fn run() {
                 .map(|d| d.join("vendor"))
                 .unwrap_or_else(|_| std::path::PathBuf::from("vendor"));
             let (obs_tx, obs_rx) = tokio::sync::mpsc::unbounded_channel();
-            let rec = Recorder::new(app.handle().clone(), vendor, obs_tx);
+            let rec = Recorder::new(app.handle().clone(), vendor.clone(), obs_tx);
             app.manage(rec.clone());
+            let dictation = dictation::Dictation::new(app.handle().clone(), vendor);
+            app.manage(dictation.clone());
+            dictation.sync();
             tauri::async_runtime::spawn(async move {
                 rec.sync_obs();
                 follow_obs(rec, obs_rx).await;
@@ -339,7 +389,22 @@ pub fn run() {
             clipboard_image,
             toggle_overlay,
             place_topbar,
+            dictation_state,
+            dictation_checks,
+            dictation_action,
+            dictation_capture,
+            dictation_set_hotkey,
+            dictation_toggle_mute,
+            dictation_test,
         ])
-        .run(tauri::generate_context!())
-        .expect("błąd uruchamiania call-whisper");
+        .build(tauri::generate_context!())
+        .expect("błąd uruchamiania call-whisper")
+        .run(|app, event| {
+            // Wyjście w trakcie dyktowania nie może zostawić wyciszonego systemu.
+            if let tauri::RunEvent::Exit = event {
+                if let Some(d) = app.try_state::<Arc<dictation::Dictation>>() {
+                    d.shutdown();
+                }
+            }
+        });
 }

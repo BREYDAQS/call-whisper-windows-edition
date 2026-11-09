@@ -42,6 +42,9 @@
       <div class="pill"><svg class="icon"><use href="#i-copy"/></svg></div><span>Kopiuj</span>
     </button>
     <button class="rail-item" id="r-export" title="Eksport"><div class="pill"><svg class="icon"><use href="#i-export"/></svg></div><span>Eksport</span></button>
+    <button class="rail-item" id="r-dictation" title="Dyktowanie skrótem do dowolnego pola (Ctrl+J)">
+      <div class="pill"><svg class="icon"><use href="#i-mic"/></svg></div><span>Dyktowanie</span>
+    </button>
     <div class="spacer"></div>
     <button class="rail-item" id="r-ready" title="Co jest potrzebne, żeby wszystko działało">
       <div class="pill"><svg class="icon"><use href="#i-ready"/></svg></div><span>Gotowość</span>
@@ -126,6 +129,44 @@
     <h2>Gotowość</h2>
     <div id="ready-list"></div>
     <div class="actions"><button class="btn-text" id="ready-close">Zamknij</button></div>
+  </dialog>
+
+  <dialog id="dictation-dialog">
+    <h2>Dyktowanie</h2>
+    <div class="form">
+      <label><span>Dyktuj skrótem do dowolnego pola</span><input type="checkbox" id="d-enabled"></label>
+      <small>Trzymasz skrót i mówisz (albo naciskasz: start / stop) — tekst wkleja się tam, gdzie stoi kursor. Schowek wraca po 2 s.</small>
+
+      <h4>Skrót</h4>
+      <div class="hotkey-row">
+        <span class="grow">Skrót</span>
+        <button class="btn-outlined hotkey" id="d-hotkey">Ctrl+J</button>
+        <button class="btn-text hidden" id="d-hotkey-reset" title="Przywróć domyślny">Ctrl+J</button>
+        <span class="lamp" id="d-lamp" title="Zapala się, gdy skrót jest wciśnięty"></span>
+      </div>
+      <label><span>Tryb</span>
+        <select id="d-mode"><option value="push">Trzymaj skrót i mów</option><option value="toggle">Naciśnij: start / stop</option></select>
+      </label>
+      <small class="bad hidden" id="d-hotkey-error"></small>
+      <small>Kliknij przycisk ze skrótem i naciśnij nowy: modyfikator z klawiszem (Ctrl+J, Ctrl+Shift+D, Alt+Space) albo klawisz F. Esc anuluje. Lampka obok zapala się, gdy skrót jest wciśnięty.</small>
+
+      <h4>Podczas dyktowania</h4>
+      <label><span>Wyciszaj dźwięk systemu</span><input type="checkbox" id="d-mute"></label>
+      <small>Muzyka, filmy i rozmowa milkną na czas nagrywania i wracają zaraz po nim. Ikona głośnika w pigułce przełącza to w locie.</small>
+
+      <h4>Model</h4>
+      <label><span>Model</span><select id="d-model"></select></label>
+      <small>Osobny od rozmowy. Domyślnie Whisper Turbo: dokładniejszy niż small, a przy krótkich wypowiedziach i tak szybki. Serwer startuje od razu po włączeniu i trzyma model w pamięci (~1,6 GB), więc pierwsze dyktowanie nie czeka.</small>
+
+      <h4>Gotowość</h4>
+      <div id="d-checks"></div>
+
+      <h4>Próba</h4>
+      <div class="hotkey-row"><button class="btn-filled" id="d-test">Nagraj próbę (3 s)</button></div>
+      <p id="d-test-result" class="hidden"></p>
+      <small>Nagrywa 3 s z mikrofonu i pokazuje rozpoznany tekst, bez wklejania. Przy prawdziwym dyktowaniu u dołu ekranu pojawia się pigułka: Słucham → Przepisuję → Wklejono.</small>
+    </div>
+    <div class="actions"><button class="btn-text" id="dictation-close">Zamknij</button></div>
   </dialog>
 
   <dialog id="settings-dialog">

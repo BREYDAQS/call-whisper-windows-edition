@@ -167,3 +167,13 @@ dialog .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top
 .form input[type=text], .form input[type=password], .form select, .form textarea {
   background: var(--card-field); color: var(--on-surface); border: 0; border-radius: var(--r-sm); padding: 8px 10px; font: inherit; min-width: 220px; }
 .form textarea { width: 100%; min-height: 80px; }
+
+/* Dyktowanie */
+.hotkey-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; }
+.hotkey-row .grow { flex: 1; }
+.hotkey { font-family: ui-monospace, Consolas, monospace; height: 32px; padding: 0 16px; }
+.hotkey.capturing { border-color: var(--primary); background: var(--primary-container); }
+.lamp { width: 10px; height: 10px; border-radius: 50%; background: var(--outline-variant); }
+.lamp.on { background: #2E9E53; }
+#d-test-result { margin: 6px 0; user-select: text; }
+#d-test-result.bad, small.bad { color: var(--error); }

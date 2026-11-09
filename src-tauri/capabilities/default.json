@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "windows": ["main", "overlay", "topbar"],
+  "windows": ["main", "overlay", "topbar", "dictation-pill"],
   "permissions": [
     "core:default",
     "core:window:allow-set-always-on-top",
