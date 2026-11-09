@@ -275,3 +275,10 @@ dialog .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top
 @media (prefers-reduced-motion: reduce) {
   .progress::after, .linear::after, .status .dot { animation: none; }
 }
+
+/* Przeciąganie pliku nad okno */
+.drop-zone { position: fixed; inset: 10px; z-index: 50; display: grid; place-items: center; text-align: center; pointer-events: none;
+  background: color-mix(in oklab, var(--bg) 88%, transparent); border: 2px dashed var(--accent); border-radius: var(--r-md); }
+.drop-zone .icon { width: 36px; height: 36px; color: var(--accent); }
+.drop-zone h2 { margin: 10px 0 6px; font: 600 30px/1 var(--font-display); letter-spacing: -0.05em; }
+.drop-zone small { font-family: var(--font-mono); font-size: 10px; color: var(--on-surface-variant); }

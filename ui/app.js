@@ -395,7 +395,16 @@ $("send").onclick = send;
 
 // --- przeciągnij i upuść = import ---
 
+// Podświetlenie całego okna w trakcie przeciągania — jak w Bibliotece na macu.
+const dropZone = () => $("drop-zone");
+listen("tauri://drag-enter", () => {
+  const busy = state.isRunning || state.isProcessing;
+  $("drop-text").textContent = busy ? "Najpierw zatrzymaj nasłuch albo poczekaj na koniec pracy" : "Upuść, żeby zaimportować";
+  dropZone().classList.remove("hidden");
+});
+listen("tauri://drag-leave", () => dropZone().classList.add("hidden"));
 listen("tauri://drag-drop", (e) => {
+  dropZone().classList.add("hidden");
   const path = e.payload.paths?.[0];
   if (path && !state.isRunning && !state.isProcessing) importFile(path);
 });
