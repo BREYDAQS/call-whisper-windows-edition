@@ -190,6 +190,7 @@ function renderSegments() {
 }
 
 function renderAnswers() {
+  renderStrip();
   const box = $("answers");
   $("assistant-label").textContent = state.assistantLabel ?? "";
   box.innerHTML = "";
@@ -198,11 +199,26 @@ function renderAnswers() {
     p.className = "hint";
     p.textContent = settings.assistantEnabled
       ? (settings.autoAsk ? "Pytania wykryte w rozmowie trafią tutaj same. Możesz też zapytać poniżej." : "Automatyczne pytania wyłączone. Zapytaj poniżej.")
-      : "Podpowiedzi wyłączone. Włącz je w pasku po lewej.";
+      : "Podpowiedzi wyłączone. Włącz je w pasku po lewej: Asystent → Podpowiedzi.";
     box.appendChild(p);
   }
   for (const item of state.answers) box.appendChild(answerCard(item));
 }
+// Zwijanie panelu podpowiedzi; stan pamiętany między uruchomieniami.
+function setCollapsed(on) {
+  try { localStorage.setItem("assistantCollapsed", on ? "1" : ""); } catch {}
+  document.querySelector(".assistant").classList.toggle("hidden", on);
+  $("expand").classList.toggle("hidden", !on);
+  renderStrip();
+}
+function renderStrip() {
+  const n = state.answers.length;
+  $("strip-count").classList.toggle("hidden", n === 0);
+  $("strip-count").textContent = n;
+}
+$("collapse").onclick = () => setCollapsed(true);
+$("expand").onclick = () => setCollapsed(false);
+
 // Licznik sekund przy oczekujących odpowiedziach.
 setInterval(() => tickPending($("answers")), 500);
 
@@ -642,6 +658,9 @@ $("d-log").onclick = () => invoke("open_folder", { kind: "logs" });
   mics = await invoke("list_mics");
   state = await invoke("get_state");
   render();
+  let collapsed = false;
+  try { collapsed = !!localStorage.getItem("assistantCollapsed"); } catch {}
+  setCollapsed(collapsed);
   await listen("state", (e) => { state = e.payload; render(); });
   await listen("settings", (e) => { settings = e.payload; render(); });
   await listen("dictation", (e) => { dict = e.payload; renderDictation(); });

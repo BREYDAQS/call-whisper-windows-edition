@@ -117,6 +117,15 @@ main { flex: 1; display: flex; flex-direction: column; min-width: 0; padding-rig
 .card { background: var(--card); border-radius: var(--r-md); position: relative; display: flex; flex-direction: column; min-height: 0; }
 .transcript { flex: 1; min-width: 340px; }
 .assistant { width: 380px; min-width: 300px; max-width: 440px; }
+.assistant header .icon-btn { margin: -8px -8px 0 6px; align-self: center; }
+.assistant header small { margin-left: auto; }
+/* Zwinięty panel podpowiedzi */
+.assistant-strip { width: 44px; flex: none; display: flex; flex-direction: column; align-items: center; gap: 12px; padding-top: 14px;
+  color: var(--on-surface-variant); }
+.assistant-strip:hover { color: var(--ink); }
+.assistant-strip .spark { color: var(--accent); }
+.assistant-strip b { min-width: 20px; height: 20px; padding: 0 4px; border-radius: var(--r-sm); background: var(--ink); color: var(--bg);
+  font: 700 11px/20px var(--font-mono); text-align: center; }
 
 .scroll { overflow-y: auto; flex: 1; user-select: text; }
 .segments { padding: 20px 24px; display: flex; flex-direction: column; gap: 20px; }
