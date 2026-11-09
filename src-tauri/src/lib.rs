@@ -3,6 +3,7 @@ mod audio;
 mod codex;
 mod diarization;
 mod dictation;
+mod legacy;
 mod media_import;
 mod meetings;
 mod model_downloader;
@@ -370,6 +371,9 @@ fn spawn_meeting_watcher(app: tauri::AppHandle) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Przed wtyczką pojedynczej instancji: stara call-whisper ma ten sam
+    // identyfikator i inaczej to ona zostałaby pokazana zamiast nowej.
+    legacy::close_old_instances();
     tauri::Builder::default()
         // Druga kopia aplikacji ma tylko pokazać pierwszą: dwa nasłuchy naraz
         // biłyby się o port whispera.
@@ -403,6 +407,12 @@ pub fn run() {
                 follow_obs(rec, obs_rx).await;
             });
             updater::spawn(app.handle().clone());
+            // Pozostałości po call-whisper — w tle, po chwili (zamknięta
+            // przed startem stara apka musi zwolnić pliki).
+            std::thread::spawn(|| {
+                std::thread::sleep(std::time::Duration::from_secs(3));
+                legacy::cleanup();
+            });
             spawn_meeting_watcher(app.handle().clone());
             Ok(())
         })
