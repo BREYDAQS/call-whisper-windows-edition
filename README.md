@@ -38,7 +38,7 @@ Testy rdzenia: `cargo test -p cw-core`.
 - [x] Etap 3: nakładka, pasek u góry ekranu (ukryte w udostępnianiu ekranu), import nagrań
 - [x] Etap 4: wykrywanie rozmów, OBS
 - [x] Rozpoznawanie głosów po rozmowie (sherpa-onnx: pyannote + CAM++, jak na macOS)
-- [x] Dyktowanie do dowolnego pola: skrót (domyślnie Ctrl+J, własny), trzymaj albo
+- [x] Dyktowanie do dowolnego pola: skrót (domyślnie Ctrl+Shift+J, własny), trzymaj albo
   naciśnij, model Turbo rozgrzany od startu, wklejanie Ctrl+V z przywróceniem
   schowka, wyciszanie dźwięku systemu, pigułka u dołu ekranu, gotowość i próba 3 s
 - [x] Podpowiedzi przez Codex CLI (ChatGPT, bez klucza): `npm i -g @openai/codex`,

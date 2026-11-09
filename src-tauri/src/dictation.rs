@@ -4,7 +4,7 @@
 //!
 //! Tryby jak tam: `push` — trzymasz skrót i mówisz; `toggle` — naciśnięcie
 //! zaczyna, kolejne kończy. Skrót rejestruje `RegisterHotKey` (wtyczka
-//! global-shortcut), więc Ctrl+J nie dociera przy okazji do aplikacji,
+//! global-shortcut), więc Ctrl+Shift+J nie dociera przy okazji do aplikacji,
 //! w której piszesz.
 
 use crate::audio::{AudioSource, Capture};

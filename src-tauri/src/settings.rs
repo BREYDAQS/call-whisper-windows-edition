@@ -15,9 +15,17 @@ pub enum AssistantBackend {
     Codex,
 }
 
+pub const DEFAULT_DICTATION_HOTKEY: &str = "Ctrl+Shift+J";
+/// Wersja układu ustawień — do jednorazowych migracji.
+const SETTINGS_VERSION: u32 = 1;
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Settings {
+    /// Pole poziomu pola (`default` = 0), a nie z `Default` struktury: stary
+    /// plik bez tego pola ma dostać 0, żeby zadziałała migracja.
+    #[serde(default)]
+    pub settings_version: u32,
     pub language: String,
     pub model_id: String,
     pub assistant_enabled: bool,
@@ -63,7 +71,8 @@ pub struct Settings {
     pub dictation_enabled: bool,
     /// `push` = trzymaj skrót i mów; `toggle` = naciśnij: start / stop.
     pub dictation_mode: String,
-    /// Akcelerator jak „Ctrl+J”, „Ctrl+Shift+D”, „F9”.
+    /// Akcelerator jak „Ctrl+Shift+J”, „Ctrl+Shift+D”, „F9”. Nie Ctrl+J:
+    /// w przeglądarkach otwiera pobrane pliki.
     pub dictation_hotkey: String,
     /// Osobny od rozmowy: krótkie wypowiedzi, więc stać nas na dokładniejszy.
     pub dictation_model: String,
@@ -74,6 +83,7 @@ pub struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         Self {
+            settings_version: SETTINGS_VERSION,
             language: "pl-PL".into(),
             model_id: String::new(),
             assistant_enabled: true,
@@ -106,7 +116,7 @@ impl Default for Settings {
             live_preview: false,
             dictation_enabled: false,
             dictation_mode: "push".into(),
-            dictation_hotkey: "Ctrl+J".into(),
+            dictation_hotkey: DEFAULT_DICTATION_HOTKEY.into(),
             dictation_model: "large-v3-turbo".into(),
             dictation_mute_system: false,
         }
@@ -146,8 +156,20 @@ impl Settings {
     pub fn load() -> Self {
         std::fs::read(settings_path())
             .ok()
-            .and_then(|data| serde_json::from_slice(&data).ok())
+            .and_then(|data| serde_json::from_slice::<Self>(&data).ok())
+            .map(Self::migrated)
             .unwrap_or_default()
+    }
+
+    /// Jednorazowe poprawki starych plików. Wersja 1: domyślny skrót
+    /// dyktowania Ctrl+J -> Ctrl+Shift+J (Ctrl+J otwiera pobrane pliki
+    /// w przeglądarce). Skrót wybrany ręcznie zostaje.
+    fn migrated(mut self) -> Self {
+        if self.settings_version < 1 && self.dictation_hotkey == "Ctrl+J" {
+            self.dictation_hotkey = DEFAULT_DICTATION_HOTKEY.into();
+        }
+        self.settings_version = SETTINGS_VERSION;
+        self
     }
 
     pub fn save(&self) -> anyhow::Result<()> {
@@ -184,4 +206,25 @@ pub fn models_dir() -> PathBuf {
 
 pub fn log_dir() -> PathBuf {
     data_dir().join("logs")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn migrates_old_default_hotkey_once() {
+        let old: Settings = serde_json::from_str(r#"{"dictationHotkey":"Ctrl+J"}"#).unwrap();
+        assert_eq!(old.settings_version, 0);
+        assert_eq!(old.migrated().dictation_hotkey, "Ctrl+Shift+J");
+
+        // Po migracji Ctrl+J wybrane świadomie zostaje.
+        let chosen: Settings =
+            serde_json::from_str(r#"{"settingsVersion":1,"dictationHotkey":"Ctrl+J"}"#).unwrap();
+        assert_eq!(chosen.migrated().dictation_hotkey, "Ctrl+J");
+
+        let custom: Settings = serde_json::from_str(r#"{"dictationHotkey":"F9"}"#).unwrap();
+        assert_eq!(custom.migrated().dictation_hotkey, "F9");
+        assert_eq!(Settings::default().dictation_hotkey, "Ctrl+Shift+J");
+    }
 }

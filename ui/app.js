@@ -506,6 +506,8 @@ $("settings-save").onclick = async () => {
 // --- dyktowanie ---
 
 let dict = null; // widok z Rusta (`dictation::View`)
+// Nie Ctrl+J — w przeglądarkach otwiera pobrane pliki.
+const DEFAULT_HOTKEY = "Ctrl+Shift+J";
 let capturing = false;
 
 // Klawisz z KeyboardEvent.code w zapisie akceleratora: KeyJ -> J, Digit1 -> 1.
@@ -524,7 +526,7 @@ function keyName(code) {
 async function captureHotkey(on) {
   capturing = on;
   $("d-hotkey").classList.toggle("capturing", on);
-  $("d-hotkey").textContent = on ? "Naciśnij skrót…" : (dict?.hotkey ?? "Ctrl+J");
+  $("d-hotkey").textContent = on ? "Naciśnij skrót…" : (dict?.hotkey ?? DEFAULT_HOTKEY);
   await invoke("dictation_capture", { on });
 }
 
@@ -558,7 +560,7 @@ function renderDictation() {
   $("d-mode").value = dict.mode;
   $("d-mute").checked = dict.muteSystem;
   if (!capturing) $("d-hotkey").textContent = dict.hotkey;
-  $("d-hotkey-reset").classList.toggle("hidden", dict.hotkey === "Ctrl+J" || capturing);
+  $("d-hotkey-reset").classList.toggle("hidden", dict.hotkey === DEFAULT_HOTKEY || capturing);
   $("d-lamp").classList.toggle("on", dict.hotkeyHeld);
   const err = dict.hotkeyError;
   if (err) { $("d-hotkey-error").textContent = err; $("d-hotkey-error").classList.remove("hidden"); }
@@ -618,7 +620,7 @@ $("r-dictation").onclick = showDictation;
 $("dictation-close").onclick = async () => { if (capturing) await captureHotkey(false); $("dictation-dialog").close(); };
 $("dictation-dialog").addEventListener("close", () => { if (capturing) captureHotkey(false); });
 $("d-hotkey").onclick = () => captureHotkey(!capturing);
-$("d-hotkey-reset").onclick = () => invoke("dictation_set_hotkey", { hotkey: "Ctrl+J" });
+$("d-hotkey-reset").onclick = () => invoke("dictation_set_hotkey", { hotkey: DEFAULT_HOTKEY });
 $("d-enabled").onchange = (e) => saveSettings({ dictationEnabled: e.target.checked });
 $("d-mode").onchange = (e) => saveSettings({ dictationMode: e.target.value });
 $("d-mute").onchange = (e) => saveSettings({ dictationMuteSystem: e.target.checked });
