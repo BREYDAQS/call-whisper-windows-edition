@@ -1,5 +1,6 @@
 mod assistant;
 mod audio;
+mod codex;
 mod diarization;
 mod dictation;
 mod media_import;

@@ -11,6 +11,8 @@ pub enum AssistantBackend {
     ClaudeCode,
     /// API zgodne z OpenAI (Experiential Labs). Szybsze, ale płatne.
     Api,
+    /// Lokalne Codex CLI (OpenAI): bez klucza, w ramach subskrypcji ChatGPT.
+    Codex,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -28,6 +30,10 @@ pub struct Settings {
     pub mic_device_id: String,
     pub assistant_backend: AssistantBackend,
     pub claude_model: String,
+    /// Model Codex; pusty = domyślny z konfiguracji Codex CLI.
+    pub codex_model: String,
+    /// `model_reasoning_effort` Codexa. Sufler ma odpowiadać w sekundy.
+    pub codex_effort: String,
     pub markdown_locale: String,
     pub absolute_timestamps: bool,
     pub min_confidence: f64,
@@ -75,6 +81,8 @@ impl Default for Settings {
             mic_device_id: String::new(),
             assistant_backend: AssistantBackend::ClaudeCode,
             claude_model: "sonnet".into(),
+            codex_model: String::new(),
+            codex_effort: "low".into(),
             markdown_locale: "pl".into(),
             absolute_timestamps: false,
             min_confidence: 0.35,

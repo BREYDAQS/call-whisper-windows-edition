@@ -41,6 +41,8 @@ Testy rdzenia: `cargo test -p cw-core`.
 - [x] Dyktowanie do dowolnego pola: skrót (domyślnie Ctrl+J, własny), trzymaj albo
   naciśnij, model Turbo rozgrzany od startu, wklejanie Ctrl+V z przywróceniem
   schowka, wyciszanie dźwięku systemu, pigułka u dołu ekranu, gotowość i próba 3 s
+- [x] Podpowiedzi przez Codex CLI (ChatGPT, bez klucza): `npm i -g @openai/codex`,
+  potem `codex login`; w Ustawieniach „Skąd biorą się podpowiedzi” → Codex
 - [x] Tekst na żywo do wyłączenia (domyślnie wył. — mniej obciążenia w rozmowie)
 - [ ] Parakeet na żywo, analiza rozmowy przez Claude Code, biblioteka modeli
 

@@ -276,6 +276,21 @@ impl Recorder {
             action: None,
             action_label: None,
         });
+        if settings.assistant_enabled && settings.assistant_backend == AssistantBackend::Codex {
+            let found = crate::codex::locate_cli().is_some();
+            checks.push(Check {
+                id: "codex",
+                title: "Codex CLI (ChatGPT)".into(),
+                ok: found,
+                detail: if found {
+                    "Znaleziony. Przy błędzie logowania: w terminalu `codex login`.".into()
+                } else {
+                    crate::codex::MISSING.into()
+                },
+                action: None,
+                action_label: None,
+            });
+        }
         if settings.assistant_enabled && settings.assistant_backend == AssistantBackend::Api {
             checks.push(Check {
                 id: "key",
@@ -541,6 +556,15 @@ impl Recorder {
     /// CLI to ~3,9 s do pierwszego tokenu, ciepły ~1,8 s.
     async fn prepare_assistant(self: &Arc<Self>) {
         let settings = self.settings();
+        // Codex nie ma czego rozgrzewać (proces na pytanie), ale brak CLI
+        // lepiej zgłosić przy starcie niż przy pierwszym pytaniu.
+        if settings.assistant_enabled
+            && settings.assistant_backend == AssistantBackend::Codex
+            && crate::codex::locate_cli().is_none()
+        {
+            self.set_error(crate::codex::MISSING);
+            return;
+        }
         if !settings.assistant_enabled || settings.assistant_backend != AssistantBackend::ClaudeCode
         {
             return;
@@ -984,6 +1008,30 @@ impl Recorder {
                         .await
                         .map(|_| ())
                 }
+                AssistantBackend::Codex => {
+                    // Codex startuje proces na każde pytanie i bywa wolniejszy.
+                    let timeout = Duration::from_secs(if image.is_some() { 150 } else { 90 });
+                    let sink = this.clone();
+                    let sink_id = id.clone();
+                    crate::codex::ask(
+                        &prompt,
+                        &settings.codex_model,
+                        &settings.codex_effort,
+                        image.as_ref(),
+                        timeout,
+                        move |delta| {
+                            let ttft = started.elapsed().as_secs_f64() * 1000.0;
+                            sink.inner
+                                .lock()
+                                .unwrap()
+                                .session
+                                .append(&sink_id, delta, Some(ttft));
+                            sink.publish();
+                        },
+                    )
+                    .await
+                    .map(|_| ())
+                }
                 AssistantBackend::Api => {
                     let sink = this.clone();
                     let sink_id = id.clone();
@@ -1062,6 +1110,17 @@ impl Recorder {
                 self.bridge
                     .ask(&prompt, None, Duration::from_secs(180), |_| {})
                     .await?
+            }
+            AssistantBackend::Codex => {
+                crate::codex::ask(
+                    &prompt,
+                    &settings.codex_model,
+                    &settings.codex_effort,
+                    None,
+                    Duration::from_secs(180),
+                    |_| {},
+                )
+                .await?
             }
             AssistantBackend::Api => {
                 let mut text = String::new();
@@ -1154,6 +1213,14 @@ pub fn assistant_label(settings: &Settings) -> String {
                 &settings.claude_model
             };
             format!("Claude Code · {model}")
+        }
+        AssistantBackend::Codex => {
+            let model = if settings.codex_model.is_empty() {
+                "domyślny"
+            } else {
+                &settings.codex_model
+            };
+            format!("Codex · {model}")
         }
         AssistantBackend::Api => {
             if settings.model_id.is_empty() {
