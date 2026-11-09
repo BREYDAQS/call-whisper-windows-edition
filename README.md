@@ -50,4 +50,4 @@ Testy rdzenia: `cargo test -p cw-core`.
 ## Licencja
 
 Patrz [LICENSE.md](LICENSE.md).
-<!-- bump: 2140486 -->
+<!-- bump: 3a2183d -->
