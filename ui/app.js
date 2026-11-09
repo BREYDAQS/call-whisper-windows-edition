@@ -24,11 +24,13 @@ function offset(ms) {
 }
 
 // Kolor awatara z nazwy: ta sama osoba ma ten sam kolor w całym transkrypcie.
+// Paleta marki: akcent, jego jasna wersja i odcienie papieru; „Ty" = atrament.
 const palette = [
-  ["var(--primary-container)", "var(--on-primary-container)"],
+  ["var(--accent)", "var(--dark)"],
+  ["var(--bg-2)", "var(--ink)"],
+  ["color-mix(in oklab, var(--accent) 40%, var(--light))", "var(--dark)"],
   ["var(--tertiary-container)", "var(--on-tertiary-container)"],
-  ["var(--secondary-container)", "var(--on-secondary-container)"],
-  ["var(--card-field)", "var(--on-surface-variant)"],
+  ["var(--primary-container)", "var(--ink)"],
 ];
 function avatarStyle(name) {
   if (name === "Ty") return ["var(--primary)", "var(--on-primary)"];

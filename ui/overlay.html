@@ -7,10 +7,11 @@
   <style>
     /* Pływające okno z odpowiedziami nad rozmową. Bez ramki systemowej:
        pasek u góry służy do przeciągania. */
-    body { flex-direction: column; background: var(--card); border: 1px solid var(--outline-variant); border-radius: 12px; }
-    .drag { display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 16px; cursor: move; }
-    .drag b { flex: 1; font-size: 14px; }
-    .drag .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--error); animation: pulse 1.2s infinite; }
+    body { flex-direction: column; background: var(--bg); border: 1px solid var(--outline-variant); border-radius: var(--r-md); }
+    .drag { display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 14px; cursor: move; }
+    .drag b { flex: 1; font: 600 18px/1 var(--font-display); letter-spacing: -0.05em; }
+    .drag .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: pulse 1.2s infinite; }
+    .answer { background: var(--card); }
     .answers { padding: 0 12px 12px; }
   </style>
 </head>

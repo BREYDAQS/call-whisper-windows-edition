@@ -10,16 +10,18 @@
        do którego wklei się tekst. */
     html, body { background: transparent; overflow: hidden; }
     body { display: grid; place-items: center; height: 100vh; margin: 0; color: #fff; }
-    .pill { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px;
-      background: rgba(0,0,0,.82); font-size: 14px; font-weight: 600; white-space: nowrap; max-width: 340px; }
-    .pill .dot { width: 8px; height: 8px; border-radius: 50%; background: #F2B8B5; }
-    .pill .key { color: rgba(255,255,255,.6); font-weight: 500; }
+    /* Ciemna jak sekcje strony Breydaqs, prawie kwadratowe rogi. */
+    .pill { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 4px;
+      background: color-mix(in oklab, var(--dark) 94%, transparent); color: var(--light);
+      font-size: 14px; font-weight: 600; white-space: nowrap; max-width: 340px; }
+    .pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+    .pill .key { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; color: color-mix(in oklab, var(--light) 60%, var(--dark)); font-weight: 500; }
     .pill .msg { overflow: hidden; text-overflow: ellipsis; }
-    .pill .ok { color: #6DD58C; }
-    .pill .warn { color: #FFB870; }
-    .mute { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; color: rgba(255,255,255,.8); }
-    .mute:hover { background: rgba(255,255,255,.12); }
-    .mute.on { color: #FFB870; }
+    .pill .ok { color: #6fcf97; }
+    .pill .warn { color: var(--accent); }
+    .mute { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 3px; color: color-mix(in oklab, var(--light) 80%, var(--dark)); }
+    .mute:hover { background: color-mix(in oklab, var(--light) 14%, var(--dark)); }
+    .mute.on { color: var(--accent); }
     .mute svg { width: 18px; height: 18px; fill: currentColor; }
   </style>
 </head>

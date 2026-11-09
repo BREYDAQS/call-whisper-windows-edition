@@ -10,14 +10,16 @@
        patrzenie rozmówcy w oczy. Ukryty w udostępnianiu ekranu. */
     html, body { background: transparent; }
     body { display: block; color: #fff; }
-    .island { margin: 0 auto; background: #000; border-radius: 0 0 22px 22px; padding: 8px 18px 10px;
+    /* Zawsze ciemny, jak ciemne sekcje strony Breydaqs. */
+    .island { margin: 0 auto; background: var(--dark); color: var(--light); border-radius: 0 0 6px 6px; padding: 8px 18px 10px;
       box-shadow: 0 4px 14px rgba(0,0,0,.35); cursor: default; }
-    .bar { display: flex; align-items: center; gap: 10px; height: 22px; font-size: 13px; font-weight: 600; }
-    .bar .dot { width: 8px; height: 8px; border-radius: 50%; background: #F2B8B5; animation: pulse 1.2s infinite; }
-    .bar .grow { flex: 1; color: #C4C7C5; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-    .bar time { font-variant-numeric: tabular-nums; color: #C4C7C5; }
+    .bar { display: flex; align-items: center; gap: 10px; height: 22px; font-family: var(--font-mono); font-size: 11px;
+      text-transform: uppercase; letter-spacing: .02em; }
+    .bar .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: pulse 1.2s infinite; }
+    .bar .grow { flex: 1; color: color-mix(in oklab, var(--light) 65%, var(--dark)); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .bar time { font-variant-numeric: tabular-nums; color: color-mix(in oklab, var(--light) 65%, var(--dark)); }
     .hint { padding-top: 6px; }
-    .hint .q { color: #A8C7FA; font-weight: 600; font-size: 13px; margin-bottom: 4px; }
+    .hint .q { color: var(--accent); font-weight: 600; font-size: 13px; margin-bottom: 4px; }
     .hint .a { font-size: 16px; line-height: 1.45; user-select: text; }
     .hint .a p { margin: 0 0 4px; }
   </style>
