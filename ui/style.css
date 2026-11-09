@@ -79,7 +79,14 @@ button:disabled { cursor: default; opacity: .38; }
 .mono { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: .02em; font-weight: 500; }
 
 /* --- szyna nawigacji --- */
-.rail { width: 88px; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 16px 0; }
+.rail { width: 88px; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 14px 0; }
+/* Grupy w szynie: etykieta mono z kreską nad nią, jak etykiety na stronie. */
+.rail-section { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 80px; margin-top: 4px;
+  font-family: var(--font-mono); font-size: 9px; text-transform: uppercase; letter-spacing: .04em;
+  color: color-mix(in oklab, var(--on-surface-variant) 75%, transparent); }
+.rail-section::before { content: ""; width: 40px; height: 1px; background: var(--outline-variant); }
+.rail-section.first { margin-top: 0; }
+.rail-section.first::before { display: none; }
 .rail .spacer { flex: 1; }
 .rail-item { display: flex; flex-direction: column; align-items: center; gap: 5px; width: 76px; position: relative; }
 .rail-item .pill { width: 52px; height: 32px; border-radius: var(--r-md); display: grid; place-items: center; color: var(--on-surface-variant);
@@ -112,7 +119,7 @@ main { flex: 1; display: flex; flex-direction: column; min-width: 0; padding-rig
 .assistant { width: 380px; min-width: 300px; max-width: 440px; }
 
 .scroll { overflow-y: auto; flex: 1; user-select: text; }
-.segments { padding: 20px 24px 120px; display: flex; flex-direction: column; gap: 20px; }
+.segments { padding: 20px 24px; display: flex; flex-direction: column; gap: 20px; }
 .segment { display: flex; gap: 14px; padding: 8px; margin: -8px; border-radius: var(--r-md); }
 .segment.selected { background: var(--primary-container); }
 .avatar { width: 34px; height: 34px; border-radius: var(--r-md); display: grid; place-items: center; font-weight: 600; flex: none; cursor: pointer; }
@@ -133,8 +140,14 @@ main { flex: 1; display: flex; flex-direction: column; min-width: 0; padding-rig
 .empty h2 { font: 600 34px/1 var(--font-display); letter-spacing: -0.06em; margin: 0; }
 .empty p { margin: 0; color: var(--on-surface-variant); max-width: 340px; }
 
-.fab-area { position: absolute; right: 20px; bottom: 20px; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
-.chip-row { display: flex; gap: 4px; padding: 4px; background: var(--bg); border-radius: var(--r-md); align-items: center; border: 1px solid var(--outline-variant); }
+/* Pasek sterowania pod transkryptem: źródła, tryb i „Słuchaj" w jednym rzędzie
+   (zawija się w wąskim oknie). Wcześniej wisiały na tekście i zasłaniały go. */
+.fab-area { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 10px 14px;
+  border-top: 1px solid var(--outline-variant); background: var(--card); }
+.fab-area .fab { margin-left: auto; }
+.chip-row { display: flex; gap: 4px; align-items: center; }
+.chip { border: 1px solid var(--outline-variant); }
+.chip.selected { border-color: transparent; }
 .chip { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border-radius: var(--r-sm);
   color: var(--on-surface-variant); font-weight: 600; max-width: 240px; transition: background-color .25s var(--ease), color .25s var(--ease); }
 .chip:hover { background: var(--primary-container); color: var(--ink); }
@@ -144,9 +157,9 @@ main { flex: 1; display: flex; flex-direction: column; min-width: 0; padding-rig
 .chev { width: 26px; height: 30px; display: grid; place-items: center; color: var(--on-surface-variant); position: relative; }
 
 /* Główny przycisk jak na stronie: atrament, tekst, kwadrat ze strzałką. */
-.fab { height: 52px; padding: 0 6px 0 16px; border-radius: var(--r-md); display: flex; align-items: center; gap: 12px;
-  font-size: 17px; font-weight: 600; letter-spacing: -0.02em; background: var(--ink); color: var(--bg); }
-.fab::after { content: "↗"; display: grid; place-items: center; width: 40px; height: 40px; border-radius: var(--r-md); font-size: 18px;
+.fab { height: 40px; padding: 0 5px 0 14px; white-space: nowrap; border-radius: var(--r-md); display: flex; align-items: center; gap: 12px;
+  font-size: 15px; font-weight: 600; letter-spacing: -0.02em; background: var(--ink); color: var(--bg); }
+.fab::after { content: "↗"; display: grid; place-items: center; width: 30px; height: 30px; border-radius: var(--r-md); font-size: 18px;
   background: color-mix(in oklab, var(--ink) 84%, var(--bg)); transition: scale .65s var(--ease); }
 .fab:hover::after { scale: .82; }
 /* Ikonę zastępuje kwadrat ze strzałką (jak przyciski na stronie). */

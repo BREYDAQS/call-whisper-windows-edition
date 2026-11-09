@@ -38,6 +38,11 @@ function avatarStyle(name) {
   for (const ch of name) h = ((h * 31) + ch.codePointAt(0)) & 0x7fffffff;
   return palette[h % palette.length];
 }
+// 1 głos, 2-4 głosy (poza 12-14), reszta głosów.
+function voices(n) {
+  if (n === 1) return "głos";
+  return [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? "głosy" : "głosów";
+}
 function initial(name) {
   const digits = name.replace(/\D/g, "");
   return digits ? digits.slice(0, 2) : name.slice(0, 1).toUpperCase();
@@ -149,7 +154,7 @@ function render() {
   $("rec-dot").classList.toggle("hidden", !s.isRunning);
   let status = s.status;
   if ((settings.identifySpeakers || settings.diarizeAfter) && s.speakerCount > 0) {
-    status += ` · ${s.speakerCount} ${s.speakerCount === 1 ? "głos" : "głosy"}`;
+    status += ` · ${s.speakerCount} ${voices(s.speakerCount)}`;
   }
   $("status").textContent = status;
   $("error").classList.toggle("hidden", !s.lastError);
