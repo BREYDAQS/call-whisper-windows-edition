@@ -428,7 +428,7 @@ const fields = [
   { key: "autoAsk", label: "Pytania z rozmowy wysyłaj same", type: "bool" },
   { key: "assistantBackend", label: "Skąd biorą się podpowiedzi", type: "select", options: [["claudeCode", "Claude Code (bez klucza, w ramach subskrypcji)"], ["codex", "Codex / ChatGPT (bez klucza, w ramach subskrypcji ChatGPT)"], ["api", "API Experiential Labs (wymaga klucza)"]] },
   { key: "claudeModel", label: "Model Claude Code", type: "select", options: [["sonnet", "sonnet"], ["haiku", "haiku"], ["opus", "opus"]] },
-  { key: "codexModel", label: "Model Codex", type: "text", hint: "Puste = domyślny z konfiguracji Codex CLI. Codex instalujesz raz: `npm i -g @openai/codex`, potem `codex login` (konto ChatGPT)." },
+  { key: "codexModel", label: "Model Codex", type: "select", options: "codexModels", hint: "Lista z konfiguracji Codexa na tym komputerze plus znane modele. Do rozmowy najlepszy najszybszy (mini). Codex instalujesz raz: `npm i -g @openai/codex`, potem `codex login` (konto ChatGPT)." },
   { key: "codexPath", label: "Ścieżka do Codex (gdy nie znajduje sam)", type: "text", hint: "Puste = szukaj samemu. W PowerShell: `where.exe codex` i wklej tu pierwszą ścieżkę." },
   { key: "codexEffort", label: "Rozumowanie Codex", type: "select", options: [["low", "niskie (najszybciej, polecane w rozmowie)"], ["medium", "średnie"], ["high", "wysokie (wolno)"]] },
   { key: "modelId", label: "Model API", type: "select", options: "apiModels" },
@@ -449,6 +449,7 @@ const fields = [
 async function showSettings() {
   const models = await invoke("models");
   const apiModels = await invoke("api_models");
+  const codexModels = await invoke("codex_models");
   const form = $("settings-form");
   form.innerHTML = "";
   for (const f of fields) {
@@ -464,8 +465,11 @@ async function showSettings() {
       input.checked = !!settings[f.key];
     } else if (f.type === "select") {
       input = document.createElement("select");
-      const options = f.options === "models" ? models.map((m) => [m.id, `${m.id} — ${m.note}${m.installed ? "" : " (pobierze się)"}`])
-        : f.options === "apiModels" ? apiModels : f.options;
+      const options = [...(f.options === "models" ? models.map((m) => [m.id, `${m.id} — ${m.note}${m.installed ? "" : " (pobierze się)"}`])
+        : f.options === "apiModels" ? apiModels
+        : f.options === "codexModels" ? codexModels : f.options)];
+      // Zapisany model spoza listy (wpisany kiedyś ręcznie) też ma być do wyboru.
+      if (settings[f.key] && !options.some(([v]) => v === settings[f.key])) options.push([settings[f.key], settings[f.key]]);
       for (const [value, text] of options) {
         const o = document.createElement("option");
         o.value = value; o.textContent = text;

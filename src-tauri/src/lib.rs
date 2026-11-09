@@ -88,6 +88,11 @@ fn api_models() -> Vec<(&'static str, &'static str)> {
 }
 
 #[tauri::command]
+fn codex_models() -> Vec<(String, String)> {
+    codex::models()
+}
+
+#[tauri::command]
 async fn start(rec: Rec<'_>) -> Result<(), String> {
     rec.inner().start(None).await;
     Ok(())
@@ -374,6 +379,7 @@ pub fn run() {
             list_mics,
             models,
             api_models,
+            codex_models,
             start,
             stop,
             cancel_processing,

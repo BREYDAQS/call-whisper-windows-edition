@@ -247,6 +247,92 @@ pub fn locate_cli(custom: &str) -> Option<Cli> {
     candidates.into_iter().find(|p| p.is_file()).map(native)
 }
 
+/// Znane modele Codexa — zapas, gdy Codex na tym komputerze nie trzyma
+/// własnej listy. Prawdziwe nazwy z konfiguracji idą przed nimi.
+const KNOWN_MODELS: &[(&str, &str)] = &[
+    ("gpt-5.1-codex-mini", "gpt-5.1-codex-mini (najszybszy, polecany w rozmowie)"),
+    ("gpt-5.1-codex", "gpt-5.1-codex"),
+    ("gpt-5-codex", "gpt-5-codex"),
+    ("gpt-5", "gpt-5"),
+];
+
+fn codex_home() -> PathBuf {
+    std::env::var_os("CODEX_HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| dirs::home_dir().unwrap_or_default().join(".codex"))
+}
+
+/// `model = "…"` z config.toml (także w profilach).
+fn configured_models(toml: &str) -> Vec<String> {
+    toml.lines()
+        .filter_map(|line| {
+            let (key, value) = line.split_once('=')?;
+            (key.trim() == "model").then(|| value.trim().trim_matches('"').trim_matches('\'').to_string())
+        })
+        .filter(|m| !m.is_empty())
+        .collect()
+}
+
+/// Nazwy modeli z pamięci podręcznej Codexa — format nieudokumentowany,
+/// więc zbieramy łagodnie każde `slug`/`id`/`model`, które wygląda na model.
+fn cached_models(json: &Value, out: &mut Vec<String>) {
+    match json {
+        Value::Object(map) => {
+            for (key, value) in map {
+                if matches!(key.as_str(), "slug" | "id" | "model") {
+                    if let Some(name) = value.as_str() {
+                        let lower = name.to_lowercase();
+                        if lower.starts_with("gpt") || lower.starts_with('o') && lower.len() < 12 || lower.contains("codex") {
+                            out.push(name.to_string());
+                        }
+                    }
+                }
+                cached_models(value, out);
+            }
+        }
+        Value::Array(items) => items.iter().for_each(|v| cached_models(v, out)),
+        _ => {}
+    }
+}
+
+/// Lista do wyboru w Ustawieniach: (wartość, etykieta). Pierwsza pozycja
+/// to model domyślny Codexa — ten z jego konfiguracji, jeśli jest.
+pub fn models() -> Vec<(String, String)> {
+    let home = codex_home();
+    let configured = std::fs::read_to_string(home.join("config.toml"))
+        .map(|t| configured_models(&t))
+        .unwrap_or_default();
+    let mut cached = Vec::new();
+    for file in ["models_cache.json", "models.json"] {
+        if let Some(json) = std::fs::read(home.join(file))
+            .ok()
+            .and_then(|d| serde_json::from_slice::<Value>(&d).ok())
+        {
+            cached_models(&json, &mut cached);
+        }
+    }
+    let default_label = match configured.first() {
+        Some(model) => format!("domyślny z Codexa ({model})"),
+        None => "domyślny z Codexa".to_string(),
+    };
+    let mut out = vec![(String::new(), default_label)];
+    let mut push = |value: String, label: String| {
+        if !out.iter().any(|(v, _)| v.eq_ignore_ascii_case(&value)) {
+            out.push((value, label));
+        }
+    };
+    for model in configured {
+        push(model.clone(), format!("{model} (z Twojej konfiguracji Codex)"));
+    }
+    for model in cached {
+        push(model.clone(), model);
+    }
+    for (value, label) in KNOWN_MODELS {
+        push(value.to_string(), label.to_string());
+    }
+    out
+}
+
 pub const MISSING: &str = "Nie znalazłem Codex CLI. Zainstaluj: w terminalu `npm i -g @openai/codex`, \
 potem `codex login` (konto ChatGPT). Jeśli jest zainstalowany: w PowerShell wpisz `where.exe codex` \
 i wklej ścieżkę w Ustawienia → „Ścieżka do Codex”. Albo wybierz Claude Code lub API.";
@@ -516,6 +602,16 @@ mod tests {
         assert_eq!(expand("%CW_TEST_DIR%/npm"), "C:/Users/x/npm");
         assert_eq!(expand("%NIE_MA_TAKIEJ%/a"), "%NIE_MA_TAKIEJ%/a");
         assert_eq!(expand("bez zmiennych"), "bez zmiennych");
+    }
+
+    #[test]
+    fn reads_models_from_config_and_cache() {
+        let toml = "model = \"gpt-5.1-codex\"\n[profiles.fast]\nmodel = \"gpt-5.1-codex-mini\"\nmodel_reasoning_effort = \"low\"\n";
+        assert_eq!(configured_models(toml), vec!["gpt-5.1-codex", "gpt-5.1-codex-mini"]);
+        let json: Value = serde_json::from_str(r#"{"models":[{"slug":"gpt-6-codex","display_name":"GPT-6"},{"slug":"x"}]}"#).unwrap();
+        let mut out = Vec::new();
+        cached_models(&json, &mut out);
+        assert_eq!(out, vec!["gpt-6-codex"]);
     }
 
     #[test]
