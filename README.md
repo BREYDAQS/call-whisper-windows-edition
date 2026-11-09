@@ -1,11 +1,11 @@
-# call-whisper — Windows
+# brqs-whisper — Windows
 
 Transkrypcja rozmów na żywo (whisper.cpp, lokalnie) z podpowiedziami. Port
 aplikacji macOS z [vibebrosi-main/whisper](https://github.com/vibebrosi-main/whisper).
 
 ## Instalacja
 
-Pobierz `call-whisper_*_x64-setup.exe` z [Releases](../../releases/latest)
+Pobierz `brqs-whisper_*_x64-setup.exe` z [Releases](../../releases/latest)
 i uruchom. Instalator wiezie silnik mowy (Vulkan na każde GPU, zapasowo CPU)
 ffmpeg i rozpoznawanie głosów (sherpa-onnx). Model mowy (~490 MB) pobiera się przy pierwszym „Słuchaj".
 

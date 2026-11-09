@@ -153,7 +153,7 @@ impl Markdown {
             out.push(format!("duration: {}", Self::yaml_string(&TimeFormat::offset(duration_ms))));
             let speakers: Vec<String> = order.iter().map(|n| Self::yaml_string(n)).collect();
             out.push(format!("speakers: [{}]", speakers.join(", ")));
-            out.push("generator: call-whisper".into());
+            out.push("generator: brqs-whisper".into());
             out.push("---".into());
             out.push(String::new());
         }

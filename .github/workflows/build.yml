@@ -129,8 +129,8 @@ jobs:
         with:
           projectPath: src-tauri
           tagName: ${{ github.event_name == 'push' && format('v{0}', env.VERSION) || '' }}
-          releaseName: call-whisper ${{ env.VERSION }}
-          releaseBody: Instalator call-whisper-${{ env.VERSION }} dla Windows. Pobierz plik *_x64-setup.exe i uruchom.
+          releaseName: brqs-whisper ${{ env.VERSION }}
+          releaseBody: Instalator brqs-whisper-${{ env.VERSION }} dla Windows. Pobierz plik *_x64-setup.exe i uruchom.
           releaseDraft: false
           prerelease: false
           includeUpdaterJson: true
@@ -146,5 +146,5 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: call-whisper-setup
+          name: brqs-whisper-setup
           path: target/release/bundle/nsis/*.exe

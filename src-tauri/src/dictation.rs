@@ -756,7 +756,7 @@ mod pill {
             })
             .unwrap_or((400.0, 600.0));
         let _ = WebviewWindowBuilder::new(app, PILL, WebviewUrl::App("pill.html".into()))
-            .title("call-whisper — dyktowanie")
+            .title("brqs-whisper — dyktowanie")
             .inner_size(WIDTH, HEIGHT)
             .position(x, y)
             .always_on_top(true)

@@ -86,7 +86,7 @@ document.addEventListener("click", closeMenus);
 
 function render() {
   const s = state;
-  $("title").textContent = s.title || "call-whisper";
+  $("title").textContent = s.title || "brqs-whisper";
 
   // szyna
   const importBtn = $("r-import");

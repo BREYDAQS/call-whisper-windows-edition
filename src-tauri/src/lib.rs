@@ -308,14 +308,14 @@ fn spawn_meeting_watcher(app: tauri::AppHandle) {
                             .notification()
                             .builder()
                             .title(format!("Słucham rozmowy w {name}"))
-                            .body("Transkrypt zbiera się w call-whisper.")
+                            .body("Transkrypt zbiera się w brqs-whisper.")
                             .show();
                     } else {
                         let _ = app
                             .notification()
                             .builder()
                             .title(format!("Wykryto rozmowę w {name}"))
-                            .body("Zapisać transkrypt? Kliknij „Słuchaj” w call-whisper.")
+                            .body("Zapisać transkrypt? Kliknij „Słuchaj” w brqs-whisper.")
                             .show();
                     }
                 }
@@ -399,7 +399,7 @@ pub fn run() {
             dictation_test,
         ])
         .build(tauri::generate_context!())
-        .expect("błąd uruchamiania call-whisper")
+        .expect("błąd uruchamiania brqs-whisper")
         .run(|app, event| {
             // Wyjście w trakcie dyktowania nie może zostawić wyciszonego systemu.
             if let tauri::RunEvent::Exit = event {

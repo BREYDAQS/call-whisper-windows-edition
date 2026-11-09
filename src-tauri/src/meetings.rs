@@ -58,7 +58,9 @@ pub fn microphone_holders() -> Vec<String> {
             };
             let stop: u64 = app.get_value("LastUsedTimeStop").unwrap_or(1);
             let start: u64 = app.get_value("LastUsedTimeStart").unwrap_or(0);
-            if stop == 0 && start > 0 && !name.to_lowercase().contains("call-whisper") {
+            // Sami nie jesteśmy rozmową: nasłuch i dyktowanie też trzymają mikrofon.
+            let own = name.to_lowercase();
+            if stop == 0 && start > 0 && !own.contains("call-whisper") && !own.contains("brqs-whisper") {
                 holders.push(name);
             }
         }

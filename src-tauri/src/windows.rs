@@ -17,7 +17,7 @@ pub fn toggle_overlay(app: &AppHandle) -> tauri::Result<bool> {
     }
     let (x, y) = corner(app, 400.0, 520.0);
     WebviewWindowBuilder::new(app, OVERLAY, WebviewUrl::App("overlay.html".into()))
-        .title("call-whisper — nakładka")
+        .title("brqs-whisper — nakładka")
         .inner_size(400.0, 520.0)
         .min_inner_size(300.0, 240.0)
         .position(x, y)
@@ -53,7 +53,7 @@ pub fn sync_topbar(app: &AppHandle, show: bool) {
         (true, None) => {
             let built =
                 WebviewWindowBuilder::new(app, TOPBAR, WebviewUrl::App("topbar.html".into()))
-                    .title("call-whisper — pasek")
+                    .title("brqs-whisper — pasek")
                     .inner_size(300.0, 54.0)
                     .always_on_top(true)
                     .decorations(false)
