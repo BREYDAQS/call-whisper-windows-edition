@@ -78,6 +78,8 @@ struct Inner {
     server_for: Option<(String, u16)>,
     /// Wyjście wyciszone przez nas (tylko takie odciszamy).
     muted_output: bool,
+    /// Okno, do którego dyktujemy (HWND z chwili startu nagrania).
+    target: isize,
     /// Podbijane przy każdej zmianie fazy — opóźnione chowanie pigułki
     /// nie może schować nowego nagrania.
     generation: u64,
@@ -106,6 +108,7 @@ impl Dictation {
                 registered: None,
                 server_for: None,
                 muted_output: false,
+                target: 0,
                 generation: 0,
             }),
             samples: Arc::new(Mutex::new(Vec::new())),
@@ -434,6 +437,8 @@ impl Dictation {
             }
         }
         self.samples.lock().unwrap().clear();
+        // Zanim pokaże się pigułka: tu ma trafić tekst.
+        self.inner.lock().unwrap().target = input::foreground();
         let settings = self.settings();
         self.set_phase(Phase::Recording);
         if settings.dictation_mute_system {
@@ -481,6 +486,12 @@ impl Dictation {
         }
         self.stop_capture();
         self.restore_output();
+        // W trybie „naciśnij” użytkownik mógł przejść do innego pola — wtedy
+        // wklejamy tam. Chyba że fokus ma nasza pigułka (klik w głośnik).
+        let now = input::foreground();
+        if now != 0 && now != pill::hwnd(&self.app) {
+            self.inner.lock().unwrap().target = now;
+        }
         let pcm = std::mem::take(&mut *self.samples.lock().unwrap());
         if pcm.len() < MIN_SAMPLES {
             self.set_phase(Phase::Idle);
@@ -494,11 +505,12 @@ impl Dictation {
                     this.set_phase(Phase::Idle);
                 }
                 Ok(text) => {
-                    let pasted = paste(&this.app, &text).await;
+                    let target = this.inner.lock().unwrap().target;
+                    let pasted = paste(&this.app, &text, target).await;
                     let generation = this.set_phase(if pasted {
                         Phase::Pasted
                     } else {
-                        Phase::Error("Tekst jest w schowku — wklej go Ctrl+V".into())
+                        Phase::Error("Nie udało się wkleić — tekst jest w schowku, wklej Ctrl+V".into())
                     });
                     let delay = if pasted { 900 } else { 3000 };
                     this.idle_after(generation, Duration::from_millis(delay));
@@ -698,7 +710,7 @@ fn now_ms() -> f64 {
 /// Schowek + Ctrl+V, potem przywrócenie poprzedniej zawartości — chyba że
 /// w międzyczasie ktoś skopiował coś nowego. `false` = tekst został tylko
 /// w schowku.
-async fn paste(app: &AppHandle, text: &str) -> bool {
+async fn paste(app: &AppHandle, text: &str, target: isize) -> bool {
     use tauri_plugin_clipboard_manager::ClipboardExt;
     let clipboard = app.clipboard();
     let old_text = clipboard.read_text().ok();
@@ -711,10 +723,19 @@ async fn paste(app: &AppHandle, text: &str) -> bool {
         return false;
     }
     let ours = input::clipboard_sequence();
-    // Skrót mógł zostawić wciśnięty Alt albo Shift (Ctrl+Shift+D) —
-    // z nimi Ctrl+V byłoby innym skrótem.
+    // Skrót zostawia wciśnięty Shift (Ctrl+Shift+J) albo Alt — z nimi
+    // Ctrl+V byłoby innym skrótem.
     input::wait_for_modifiers_up(Duration::from_millis(800)).await;
+    // Ctrl+V idzie do okna z fokusem. Jeśli to nie jest okno, do którego
+    // dyktowano, i nie da się go przywrócić — nie wklejamy na ślepo i NIE
+    // przywracamy starego schowka: tekst ma zostać do wklejenia ręcznie.
+    if !input::focus(target).await {
+        return false;
+    }
     let sent = input::send_ctrl_v();
+    if !sent {
+        return false;
+    }
 
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
@@ -741,9 +762,49 @@ mod pill {
     const WIDTH: f64 = 360.0;
     const HEIGHT: f64 = 48.0;
 
-    pub fn show(app: &AppHandle) {
+    /// HWND pigułki (0 = brak) — żeby nie wziąć jej za cel wklejania.
+    pub fn hwnd(app: &AppHandle) -> isize {
+        #[cfg(windows)]
         if let Some(window) = app.get_webview_window(PILL) {
-            let _ = window.show();
+            if let Ok(hwnd) = window.hwnd() {
+                return hwnd.0 as isize;
+            }
+        }
+        #[cfg(not(windows))]
+        let _ = app;
+        0
+    }
+
+    /// Bez aktywacji okna. `window.show()` po schowaniu robi zwykłe SW_SHOW
+    /// i zabiera fokus — wtedy Ctrl+V trafiało w pigułkę, nie w pole.
+    fn show_no_activate(window: &tauri::WebviewWindow) {
+        #[cfg(windows)]
+        {
+            use windows_sys::Win32::UI::WindowsAndMessaging::{
+                SetWindowPos, ShowWindow, HWND_TOPMOST, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE,
+                SW_SHOWNOACTIVATE,
+            };
+            if let Ok(hwnd) = window.hwnd() {
+                let hwnd = hwnd.0 as _;
+                unsafe {
+                    ShowWindow(hwnd, SW_SHOWNOACTIVATE);
+                    SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE);
+                }
+                return;
+            }
+        }
+        let _ = window.show();
+    }
+
+    pub fn show(app: &AppHandle) {
+        let handle = app.clone();
+        // Okna tworzymy i pokazujemy na głównym wątku.
+        let _ = app.run_on_main_thread(move || show_now(&handle));
+    }
+
+    fn show_now(app: &AppHandle) {
+        if let Some(window) = app.get_webview_window(PILL) {
+            show_no_activate(&window);
             return;
         }
         let (x, y) = app
@@ -755,7 +816,7 @@ mod pill {
                 ((size.width - WIDTH) / 2.0, size.height - HEIGHT - 72.0)
             })
             .unwrap_or((400.0, 600.0));
-        let _ = WebviewWindowBuilder::new(app, PILL, WebviewUrl::App("pill.html".into()))
+        let built = WebviewWindowBuilder::new(app, PILL, WebviewUrl::App("pill.html".into()))
             .title("brqs-whisper — dyktowanie")
             .inner_size(WIDTH, HEIGHT)
             .position(x, y)
@@ -767,7 +828,11 @@ mod pill {
             .skip_taskbar(true)
             .focusable(false)
             .focused(false)
+            .visible(false)
             .build();
+        if let Ok(window) = built {
+            show_no_activate(&window);
+        }
     }
 
     pub fn hide(app: &AppHandle) {
@@ -785,6 +850,31 @@ mod input {
 
     pub fn clipboard_sequence() -> u32 {
         unsafe { GetClipboardSequenceNumber() }
+    }
+
+    pub fn foreground() -> isize {
+        unsafe { windows_sys::Win32::UI::WindowsAndMessaging::GetForegroundWindow() as isize }
+    }
+
+    /// Przywraca fokus oknu, do którego dyktowano. `true` = ma fokus.
+    /// Wolno nam: to my dostaliśmy ostatnie zdarzenie (skrót) albo nasze
+    /// okno ma fokus, więc Windows nie blokuje SetForegroundWindow.
+    pub async fn focus(target: isize) -> bool {
+        use windows_sys::Win32::UI::WindowsAndMessaging::{IsWindow, SetForegroundWindow};
+        if target == 0 || foreground() == target {
+            return true;
+        }
+        if unsafe { IsWindow(target as _) } == 0 {
+            return false;
+        }
+        for _ in 0..3 {
+            unsafe { SetForegroundWindow(target as _) };
+            tokio::time::sleep(Duration::from_millis(60)).await;
+            if foreground() == target {
+                return true;
+            }
+        }
+        false
     }
 
     fn down(vk: VIRTUAL_KEY) -> bool {
@@ -834,6 +924,12 @@ mod input {
     use std::time::Duration;
     pub fn clipboard_sequence() -> u32 {
         0
+    }
+    pub fn foreground() -> isize {
+        0
+    }
+    pub async fn focus(_target: isize) -> bool {
+        true
     }
     pub async fn wait_for_modifiers_up(_limit: Duration) {}
     pub fn send_ctrl_v() -> bool {
