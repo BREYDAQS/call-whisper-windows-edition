@@ -37,11 +37,6 @@
     <button class="rail-item" id="r-folder" title="Folder z transkryptami (.md) — każda rozmowa i import zapisują się tam same">
       <div class="pill"><svg class="icon"><use href="#i-folder"/></svg></div><span>Folder</span>
     </button>
-    <div class="rail-section">Transkrypt</div>
-    <button class="rail-item" id="r-copy" title="Kopiuj wszystkie wypowiedzi do wklejenia w czat (Ctrl+Shift+C)">
-      <div class="pill"><svg class="icon"><use href="#i-copy"/></svg></div><span>Kopiuj</span>
-    </button>
-    <button class="rail-item" id="r-export" title="Eksport"><div class="pill"><svg class="icon"><use href="#i-export"/></svg></div><span>Eksport</span></button>
     <div class="rail-section">Asystent</div>
     <button class="rail-item" id="r-hints"><div class="pill"><svg class="icon"><use href="#i-sparkles"/></svg></div><span>Podpowiedzi</span></button>
     <button class="rail-item" id="r-overlay" title="Pływające okno z odpowiedziami, zostaje na wierzchu nad rozmową">
@@ -72,6 +67,13 @@
 
     <div class="cards">
       <section class="card transcript" id="transcript">
+        <!-- Akcje na tej rozmowie są przy niej, nie w szynie bez kontekstu. -->
+        <header class="t-head">
+          <h3>Transkrypt</h3><small id="seg-count"></small>
+          <span class="grow"></span>
+          <button class="head-btn" id="r-copy" title="Kopiuj cały transkrypt do wklejenia w czat (Ctrl+Shift+C)"><svg class="icon"><use href="#i-copy"/></svg><span>Kopiuj</span></button>
+          <button class="head-btn" id="r-export" title="Eksport: Markdown, JSON albo notatka dla Claude"><svg class="icon"><use href="#i-export"/></svg><span>Eksport</span></button>
+        </header>
         <div class="selection-bar hidden" id="selection-bar">
           <span class="grow" id="selection-count"></span>
           <button class="btn-text" id="sel-all">Zaznacz wszystko</button>

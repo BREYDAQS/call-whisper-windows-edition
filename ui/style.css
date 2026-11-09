@@ -282,3 +282,17 @@ dialog .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top
 .drop-zone .icon { width: 36px; height: 36px; color: var(--accent); }
 .drop-zone h2 { margin: 10px 0 6px; font: 600 30px/1 var(--font-display); letter-spacing: -0.05em; }
 .drop-zone small { font-family: var(--font-mono); font-size: 10px; color: var(--on-surface-variant); }
+
+/* Nagłówek transkryptu z akcjami na tej rozmowie */
+.t-head { display: flex; align-items: center; gap: 10px; padding: 10px 10px 10px 20px; border-bottom: 1px solid var(--outline-variant); }
+.t-head h3 { margin: 0; font: 600 20px/1 var(--font-display); letter-spacing: -0.05em; white-space: nowrap; }
+.t-head small { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; color: var(--on-surface-variant); white-space: nowrap; }
+.t-head .grow { flex: 1; }
+.head-btn { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border-radius: var(--r-md); font-weight: 600; white-space: nowrap;
+  transition: background-color .25s var(--ease); }
+.head-btn .icon { width: 18px; height: 18px; }
+.head-btn:not(:disabled):hover { background: var(--primary-container); }
+/* W wąskiej karcie same ikony (opis w podpowiedzi). */
+@container (max-width: 470px) { .head-btn span { display: none; } }
+.transcript { container-type: inline-size; }
+.selection-bar { top: 58px; }

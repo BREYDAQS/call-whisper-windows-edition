@@ -102,6 +102,7 @@ function render() {
   $("r-hints").title = settings.assistantEnabled ? `Podpowiedzi włączone: ${s.assistantLabel}` : "Podpowiedzi wyłączone. Kliknij, żeby włączyć.";
   $("r-overlay").classList.toggle("selected", !!s.overlayVisible);
   $("r-copy").disabled = s.segments.length === 0;
+  $("seg-count").textContent = s.segments.length ? `${s.segments.length} ${s.segments.length === 1 ? "wypowiedź" : "wypowiedzi"}` : "";
   $("r-export").disabled = s.segments.length === 0 || s.isRunning;
   const allGood = s.readinessOk !== false;
   $("r-ready").classList.toggle("selected", !allGood);
