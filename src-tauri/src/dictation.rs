@@ -80,6 +80,8 @@ struct Inner {
     muted_output: bool,
     /// Okno, do którego dyktujemy (HWND z chwili startu nagrania).
     target: isize,
+    /// Start nagrania — żeby odróżnić muśnięcie skrótu od pustego mikrofonu.
+    started: Option<std::time::Instant>,
     /// Podbijane przy każdej zmianie fazy — opóźnione chowanie pigułki
     /// nie może schować nowego nagrania.
     generation: u64,
@@ -109,6 +111,7 @@ impl Dictation {
                 server_for: None,
                 muted_output: false,
                 target: 0,
+                started: None,
                 generation: 0,
             }),
             samples: Arc::new(Mutex::new(Vec::new())),
@@ -236,6 +239,7 @@ impl Dictation {
     }
 
     fn pressed(self: &Arc<Self>) {
+        log("skrót wciśnięty");
         {
             let mut inner = self.inner.lock().unwrap();
             // RegisterHotKey bez powtórzeń, ale strzeżonego Pan Bóg strzeże.
@@ -438,8 +442,18 @@ impl Dictation {
         }
         self.samples.lock().unwrap().clear();
         // Zanim pokaże się pigułka: tu ma trafić tekst.
-        self.inner.lock().unwrap().target = input::foreground();
+        let target = input::foreground();
+        {
+            let mut inner = self.inner.lock().unwrap();
+            inner.target = target;
+            inner.started = Some(std::time::Instant::now());
+        }
         let settings = self.settings();
+        log(&format!(
+            "start: okno {target:#x}, mikrofon „{}”, tryb {}",
+            if settings.mic_device_id.is_empty() { "domyślny" } else { &settings.mic_device_id },
+            settings.dictation_mode
+        ));
         self.set_phase(Phase::Recording);
         if settings.dictation_mute_system {
             self.mute_output();
@@ -456,6 +470,10 @@ impl Dictation {
                 move |chunk| samples.lock().unwrap().extend_from_slice(&chunk.samples),
                 move |err| errors.fail(err),
             );
+            log(&format!(
+                "mikrofon: {}",
+                capture.as_ref().map(|_| "działa".to_string()).unwrap_or_else(|e| format!("błąd {e}"))
+            ));
             match capture {
                 Ok(capture) => {
                     let mut inner = this.inner.lock().unwrap();
@@ -493,20 +511,56 @@ impl Dictation {
             self.inner.lock().unwrap().target = now;
         }
         let pcm = std::mem::take(&mut *self.samples.lock().unwrap());
-        if pcm.len() < MIN_SAMPLES {
+        let held = self
+            .inner
+            .lock()
+            .unwrap()
+            .started
+            .take()
+            .map(|s| s.elapsed().as_secs_f64())
+            .unwrap_or(0.0);
+        let peak = pcm.iter().fold(0.0f32, |m, s| m.max(s.abs()));
+        log(&format!(
+            "stop: {:.1} s trzymania, {:.1} s dźwięku, szczyt {peak:.4}",
+            held,
+            pcm.len() as f64 / SAMPLE_RATE as f64
+        ));
+        // Zbyt krótko = muśnięcie skrótu; to nie błąd.
+        if held < 0.5 && pcm.len() < MIN_SAMPLES {
             self.set_phase(Phase::Idle);
+            return;
+        }
+        // Wcześniej te przypadki po cichu chowały pigułkę — w rozmowie
+        // wyglądało to jak „dyktowanie nie działa”.
+        if pcm.len() < MIN_SAMPLES {
+            self.fail("Mikrofon nic nie nagrał — może zajmuje go rozmowa albo wybrany jest inny mikrofon.".into());
+            return;
+        }
+        if peak < 0.005 {
+            self.fail("Cisza z mikrofonu — wyciszony w rozmowie albo na słuchawkach?".into());
             return;
         }
         self.set_phase(Phase::Transcribing);
         let this = self.clone();
         tauri::async_runtime::spawn(async move {
-            match this.transcribe(&pcm).await {
+            let started = std::time::Instant::now();
+            let result = this.transcribe(&pcm).await;
+            log(&format!(
+                "whisper: {} ms, {}",
+                started.elapsed().as_millis(),
+                match &result {
+                    Ok(text) => format!("{} znaków", text.chars().count()),
+                    Err(err) => format!("błąd {err}"),
+                }
+            ));
+            match result {
                 Ok(text) if text.trim().is_empty() => {
-                    this.set_phase(Phase::Idle);
+                    this.fail("Nie rozpoznano mowy — powiedz coś dłuższego albo głośniej.".into());
                 }
                 Ok(text) => {
                     let target = this.inner.lock().unwrap().target;
                     let pasted = paste(&this.app, &text, target).await;
+                    log(&format!("wklejanie do {target:#x}: {}", if pasted { "ok" } else { "nie — tekst w schowku" }));
                     let generation = this.set_phase(if pasted {
                         Phase::Pasted
                     } else {
@@ -690,6 +744,30 @@ impl Dictation {
             output::unmute();
         }
     }
+}
+
+/// Krótki log dyktowania (%LOCALAPPDATA%\call-whisper\logs\dictation.log):
+/// gdy „nie działa”, po jednej próbie widać, na którym kroku.
+fn log(line: &str) {
+    use std::io::Write;
+    let dir = crate::settings::log_dir();
+    let _ = std::fs::create_dir_all(&dir);
+    let path = dir.join("dictation.log");
+    // Bez rotacji: przycinamy, gdy urośnie ponad ~200 kB.
+    if std::fs::metadata(&path).map(|m| m.len() > 200_000).unwrap_or(false) {
+        let _ = std::fs::remove_file(&path);
+    }
+    if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(&path) {
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        let _ = writeln!(file, "{stamp} {line}");
+    }
+}
+
+pub fn log_path() -> std::path::PathBuf {
+    crate::settings::log_dir().join("dictation.log")
 }
 
 fn dictation_port(settings: &Settings) -> u16 {

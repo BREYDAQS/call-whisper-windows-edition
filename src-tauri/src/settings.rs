@@ -44,6 +44,8 @@ pub struct Settings {
     pub codex_effort: String,
     /// Ścieżka do `codex` (exe, codex.cmd albo katalog), gdy nie znajdziemy sami.
     pub codex_path: String,
+    /// Folder, do którego zapisują się transkrypty (.md); pusty = Dokumenty\brqs-whisper.
+    pub transcripts_dir: String,
     pub markdown_locale: String,
     pub absolute_timestamps: bool,
     pub min_confidence: f64,
@@ -96,6 +98,7 @@ impl Default for Settings {
             codex_model: String::new(),
             codex_effort: "low".into(),
             codex_path: String::new(),
+            transcripts_dir: String::new(),
             markdown_locale: "pl".into(),
             absolute_timestamps: false,
             min_confidence: 0.35,
@@ -198,6 +201,14 @@ pub fn data_dir() -> PathBuf {
 
 pub fn settings_path() -> PathBuf {
     config_dir().join("settings.json")
+}
+
+/// Dokumenty\brqs-whisper — tu lądują transkrypty, łatwe do znalezienia.
+pub fn default_transcripts_dir() -> PathBuf {
+    dirs::document_dir()
+        .or_else(dirs::home_dir)
+        .unwrap_or_else(std::env::temp_dir)
+        .join("brqs-whisper")
 }
 
 pub fn models_dir() -> PathBuf {

@@ -249,6 +249,7 @@ $("r-import").onclick = () => state.isProcessing ? invoke("cancel_processing") :
 $("empty-import").onclick = () => importFile();
 $("r-hints").onclick = () => saveSettings({ assistantEnabled: !settings.assistantEnabled });
 $("r-overlay").onclick = () => invoke("toggle_overlay");
+$("r-folder").onclick = () => invoke("open_folder", { kind: "transcripts" });
 $("r-copy").onclick = () => copy(null, "cały transkrypt");
 $("r-export").onclick = (e) => {
   e.stopPropagation();
@@ -440,6 +441,7 @@ const fields = [
   { section: "OBS" },
   { key: "followObs", label: "Nagrywaj wideo w OBS razem z nasłuchem", type: "bool" },
   { section: "Eksport" },
+  { key: "transcriptsDir", label: "Folder transkryptów", type: "text", hint: "Puste = Dokumenty\\brqs-whisper. Każda rozmowa i import zapisują się tam same jako .md; przycisk „Folder” po lewej go otwiera." },
   { key: "markdownLocale", label: "Język pliku", type: "select", options: [["pl", "polski"], ["en", "angielski"]] },
   { key: "absoluteTimestamps", label: "Znaczniki czasu jako godzina zegarowa", type: "bool" },
   { section: "Aktualizacje" },
@@ -626,6 +628,7 @@ $("d-mode").onchange = (e) => saveSettings({ dictationMode: e.target.value });
 $("d-mute").onchange = (e) => saveSettings({ dictationMuteSystem: e.target.checked });
 $("d-model").onchange = (e) => saveSettings({ dictationModel: e.target.value });
 $("d-test").onclick = () => invoke("dictation_test");
+$("d-log").onclick = () => invoke("open_folder", { kind: "logs" });
 
 // --- start ---
 

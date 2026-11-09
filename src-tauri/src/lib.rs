@@ -252,6 +252,40 @@ fn dictation_test(d: Dict) {
     d.inner().run_test();
 }
 
+/// Otwiera folder w Eksploratorze: `transcripts` (z zaznaczonym plikiem
+/// ostatniej rozmowy, jeśli jest) albo `logs` (log dyktowania).
+#[tauri::command]
+fn open_folder(rec: Rec, kind: String) -> Result<(), String> {
+    let (dir, select) = match kind.as_str() {
+        "logs" => {
+            let log = dictation::log_path();
+            (settings::log_dir(), log.exists().then_some(log))
+        }
+        _ => (rec.transcripts_dir(), rec.saved_path().filter(|p| p.exists())),
+    };
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    reveal(&dir, select.as_deref()).map_err(|e| e.to_string())
+}
+
+#[cfg(windows)]
+fn reveal(dir: &std::path::Path, select: Option<&std::path::Path>) -> std::io::Result<()> {
+    use std::os::windows::process::CommandExt;
+    let mut command = std::process::Command::new("explorer.exe");
+    match select {
+        // Dosłownie `/select,"ścieżka"`: zwykłe `arg` owinęłoby w cudzysłów
+        // cały argument razem z `/select,`, a explorer tego nie rozumie
+        // przy ścieżkach ze spacjami.
+        Some(file) => command.raw_arg(format!("/select,\"{}\"", file.display())),
+        None => command.arg(dir),
+    };
+    command.spawn().map(|_| ())
+}
+
+#[cfg(not(windows))]
+fn reveal(dir: &std::path::Path, _select: Option<&std::path::Path>) -> std::io::Result<()> {
+    std::process::Command::new("open").arg(dir).spawn().map(|_| ())
+}
+
 #[tauri::command]
 fn place_topbar(app: tauri::AppHandle, width: f64, height: f64) {
     windows::place_topbar(&app, width, height);
@@ -403,6 +437,7 @@ pub fn run() {
             dictation_set_hotkey,
             dictation_toggle_mute,
             dictation_test,
+            open_folder,
         ])
         .build(tauri::generate_context!())
         .expect("błąd uruchamiania brqs-whisper")

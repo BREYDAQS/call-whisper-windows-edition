@@ -43,6 +43,7 @@ Testy rdzenia: `cargo test -p cw-core`.
   schowka, wyciszanie dźwięku systemu, pigułka u dołu ekranu, gotowość i próba 3 s
 - [x] Podpowiedzi przez Codex CLI (ChatGPT, bez klucza): `npm i -g @openai/codex`,
   potem `codex login`; w Ustawieniach „Skąd biorą się podpowiedzi” → Codex
+- [x] Transkrypty zapisują się same jako .md (Dokumenty\\brqs-whisper), przycisk „Folder”
 - [x] Tekst na żywo do wyłączenia (domyślnie wył. — mniej obciążenia w rozmowie)
 - [ ] Parakeet na żywo, analiza rozmowy przez Claude Code, biblioteka modeli
 

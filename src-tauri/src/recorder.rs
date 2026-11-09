@@ -89,6 +89,9 @@ struct Inner {
     overlay_visible: bool,
     meeting: Option<String>,
     update: Option<String>,
+    /// Plik .md tej sesji w folderze transkryptów — kolejne zapisy (np. po
+    /// rozpoznaniu głosów) nadpisują go zamiast tworzyć nowy.
+    saved_path: Option<PathBuf>,
 }
 
 pub struct Recorder {
@@ -138,6 +141,7 @@ impl Recorder {
                 sources: Vec::new(),
                 tasks: Vec::new(),
                 processing: None,
+                saved_path: None,
                 overlay_visible: false,
                 meeting: None,
                 update: None,
@@ -400,6 +404,7 @@ impl Recorder {
             }
             inner.last_error = None;
             inner.imported_meta = None;
+            inner.saved_path = None;
             inner.is_processing = true;
         }
         self.publish();
@@ -699,6 +704,7 @@ impl Recorder {
         }
         self.publish();
         crate::windows::sync_topbar(&self.app, false);
+        self.autosave(None);
 
         let tape = self.inner.lock().unwrap().tape.take();
         if let Some(tape) = tape {
@@ -774,9 +780,69 @@ impl Recorder {
                 }
                 inner.is_processing = false;
             }
+            // Nowe etykiety głosów — nadpisujemy zapisany plik.
+            this.autosave(None);
             this.publish();
         });
         self.inner.lock().unwrap().processing = Some(task);
+    }
+
+    /// Folder z transkryptami: z ustawień albo Dokumenty\brqs-whisper.
+    pub fn transcripts_dir(&self) -> PathBuf {
+        let custom = self.settings().transcripts_dir;
+        if custom.trim().is_empty() {
+            crate::settings::default_transcripts_dir()
+        } else {
+            PathBuf::from(custom.trim())
+        }
+    }
+
+    /// Zapis transkryptu jako .md do folderu transkryptów — każda rozmowa
+    /// i każdy import, bez pamiętania o eksporcie. `name`: nazwa pliku
+    /// (import), `None` = data + tytuł rozmowy.
+    fn autosave(&self, name: Option<&str>) {
+        if self.segments().is_empty() {
+            return;
+        }
+        let existing = self.inner.lock().unwrap().saved_path.clone();
+        let path = match existing {
+            Some(path) => path,
+            None => {
+                let dir = self.transcripts_dir();
+                if let Err(err) = std::fs::create_dir_all(&dir) {
+                    self.set_error(format!("Nie udało się utworzyć folderu transkryptów: {err}"));
+                    return;
+                }
+                let started = self.inner.lock().unwrap().started_at.unwrap_or_else(now_ms);
+                let title = self.settings().title;
+                let base = match name {
+                    Some(name) => safe_file_name(name),
+                    None => {
+                        let stamp = TimeFormat::filename_stamp(started);
+                        let title = safe_file_name(&title);
+                        if title.is_empty() { format!("{stamp} rozmowa") } else { format!("{stamp} {title}") }
+                    }
+                };
+                let mut path = dir.join(format!("{base}.md"));
+                let mut n = 2;
+                while path.exists() {
+                    path = dir.join(format!("{base} ({n}).md"));
+                    n += 1;
+                }
+                path
+            }
+        };
+        match std::fs::write(&path, self.markdown(None)) {
+            Ok(()) => {
+                self.inner.lock().unwrap().saved_path = Some(path);
+            }
+            Err(err) => self.set_error(format!("Nie udało się zapisać transkryptu: {err}")),
+        }
+    }
+
+    /// Ostatnio zapisany plik tej sesji (do „Pokaż w folderze”).
+    pub fn saved_path(&self) -> Option<PathBuf> {
+        self.inner.lock().unwrap().saved_path.clone()
     }
 
     /// Transkrypt obok pliku wideo z OBS, z tą samą nazwą i czasami
@@ -819,6 +885,7 @@ impl Recorder {
             }
             inner.is_processing = true;
             inner.last_error = None;
+            inner.saved_path = None;
         }
         self.publish();
         let this = self.clone();
@@ -869,6 +936,11 @@ impl Recorder {
                     }
                 }
                 this.server.lock().await.stop();
+                let stem = path
+                    .file_stem()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| "import".into());
+                this.autosave(Some(&stem));
             }
             this.inner.lock().unwrap().is_processing = false;
             this.publish();
@@ -1236,6 +1308,18 @@ pub fn assistant_label(settings: &Settings) -> String {
     }
 }
 
+/// Nazwa pliku bez znaków, których Windows nie przyjmie.
+fn safe_file_name(name: &str) -> String {
+    name.chars()
+        .map(|c| if matches!(c, '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*') || c.is_control() { '-' } else { c })
+        .collect::<String>()
+        .trim()
+        .trim_end_matches('.')
+        .chars()
+        .take(80)
+        .collect()
+}
+
 /// Magazyn z gotowych, zamkniętych segmentów (import, nowe etykiety mówców).
 fn rebuilt(started_at: f64, segments: &[Segment]) -> TranscriptStore {
     let mut store = TranscriptStore::new(started_at);
@@ -1251,4 +1335,17 @@ fn rebuilt(started_at: f64, segments: &[Segment]) -> TranscriptStore {
     }
     store.finalize_all(now_ms());
     store
+}
+
+#[cfg(test)]
+mod file_name_tests {
+    use super::safe_file_name;
+
+    #[test]
+    fn strips_characters_windows_rejects() {
+        assert_eq!(safe_file_name("Rekrutacja: Acme / Q4?"), "Rekrutacja- Acme - Q4-");
+        assert_eq!(safe_file_name("  nagranie.  "), "nagranie");
+        assert_eq!(safe_file_name("a\\b*c"), "a-b-c");
+        assert_eq!(safe_file_name(&"x".repeat(200)).chars().count(), 80);
+    }
 }
