@@ -34,6 +34,8 @@ pub struct Settings {
     pub codex_model: String,
     /// `model_reasoning_effort` Codexa. Sufler ma odpowiadać w sekundy.
     pub codex_effort: String,
+    /// Ścieżka do `codex` (exe, codex.cmd albo katalog), gdy nie znajdziemy sami.
+    pub codex_path: String,
     pub markdown_locale: String,
     pub absolute_timestamps: bool,
     pub min_confidence: f64,
@@ -83,6 +85,7 @@ impl Default for Settings {
             claude_model: "sonnet".into(),
             codex_model: String::new(),
             codex_effort: "low".into(),
+            codex_path: String::new(),
             markdown_locale: "pl".into(),
             absolute_timestamps: false,
             min_confidence: 0.35,

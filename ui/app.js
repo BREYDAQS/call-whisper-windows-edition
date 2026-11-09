@@ -429,6 +429,7 @@ const fields = [
   { key: "assistantBackend", label: "Skąd biorą się podpowiedzi", type: "select", options: [["claudeCode", "Claude Code (bez klucza, w ramach subskrypcji)"], ["codex", "Codex / ChatGPT (bez klucza, w ramach subskrypcji ChatGPT)"], ["api", "API Experiential Labs (wymaga klucza)"]] },
   { key: "claudeModel", label: "Model Claude Code", type: "select", options: [["sonnet", "sonnet"], ["haiku", "haiku"], ["opus", "opus"]] },
   { key: "codexModel", label: "Model Codex", type: "text", hint: "Puste = domyślny z konfiguracji Codex CLI. Codex instalujesz raz: `npm i -g @openai/codex`, potem `codex login` (konto ChatGPT)." },
+  { key: "codexPath", label: "Ścieżka do Codex (gdy nie znajduje sam)", type: "text", hint: "Puste = szukaj samemu. W PowerShell: `where.exe codex` i wklej tu pierwszą ścieżkę." },
   { key: "codexEffort", label: "Rozumowanie Codex", type: "select", options: [["low", "niskie (najszybciej, polecane w rozmowie)"], ["medium", "średnie"], ["high", "wysokie (wolno)"]] },
   { key: "modelId", label: "Model API", type: "select", options: "apiModels" },
   { key: "apiKey", label: "Klucz API", type: "password" },

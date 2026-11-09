@@ -13,7 +13,7 @@ use crate::whisper_server::job;
 #[cfg(windows)]
 use crate::whisper_server::CREATE_NO_WINDOW;
 use serde_json::Value;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
@@ -34,62 +34,222 @@ pub struct Cli {
     prefix: Vec<String>,
 }
 
-fn on_path(name: &str) -> Option<PathBuf> {
-    std::env::var_os("PATH").and_then(|path| {
-        std::env::split_paths(&path)
-            .map(|d| d.join(name))
-            .find(|p| p.is_file())
+/// Katalogi PATH: z procesu i świeżo z rejestru. Aplikacja uruchomiona
+/// z menu Start ma PATH z chwili logowania — Node albo Codex zainstalowane
+/// później są widoczne tylko w rejestrze.
+fn search_dirs() -> Vec<PathBuf> {
+    let mut dirs: Vec<PathBuf> = std::env::var_os("PATH")
+        .map(|p| std::env::split_paths(&p).collect())
+        .unwrap_or_default();
+    #[cfg(windows)]
+    {
+        use winreg::enums::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE};
+        use winreg::RegKey;
+        let keys = [
+            (HKEY_CURRENT_USER, "Environment"),
+            (HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment"),
+        ];
+        for (root, path) in keys {
+            let value: Option<String> = RegKey::predef(root)
+                .open_subkey(path)
+                .ok()
+                .and_then(|k| k.get_value("Path").ok());
+            if let Some(value) = value {
+                dirs.extend(value.split(';').filter(|d| !d.is_empty()).map(|d| PathBuf::from(expand(d))));
+            }
+        }
+    }
+    let mut seen = std::collections::HashSet::new();
+    dirs.retain(|d| seen.insert(d.to_string_lossy().to_lowercase()));
+    dirs
+}
+
+/// `%USERPROFILE%\x` -> pełna ścieżka (wartości PATH w rejestrze są nierozwinięte).
+#[cfg_attr(not(windows), allow(dead_code))]
+fn expand(value: &str) -> String {
+    let mut out = String::new();
+    let mut rest = value;
+    while let Some(start) = rest.find('%') {
+        out.push_str(&rest[..start]);
+        let after = &rest[start + 1..];
+        match after.find('%') {
+            Some(end) => {
+                let name = &after[..end];
+                match std::env::var(name) {
+                    Ok(v) => out.push_str(&v),
+                    Err(_) => out.push_str(&rest[start..start + end + 2]),
+                }
+                rest = &after[end + 1..];
+            }
+            None => {
+                out.push_str(&rest[start..]);
+                rest = "";
+            }
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
+fn exe_name() -> &'static str {
+    if cfg!(windows) {
+        "codex.exe"
+    } else {
+        "codex"
+    }
+}
+
+impl Cli {
+    /// Do Gotowości: co dokładnie uruchamiamy.
+    pub fn describe(&self) -> String {
+        std::iter::once(self.program.display().to_string())
+            .chain(self.prefix.iter().cloned())
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+}
+
+fn native(program: PathBuf) -> Cli {
+    Cli {
+        program,
+        prefix: Vec::new(),
+    }
+}
+
+/// Plik o danej nazwie w drzewie katalogów (płytko — pakiet npm Codexa
+/// trzyma binarkę kilka poziomów niżej, różnie w różnych wersjach).
+fn find_file(dir: &Path, name: &str, depth: usize) -> Option<PathBuf> {
+    let entries = std::fs::read_dir(dir).ok()?;
+    let mut subdirs = Vec::new();
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            subdirs.push(path);
+        } else if path
+            .file_name()
+            .is_some_and(|n| n.to_string_lossy().eq_ignore_ascii_case(name))
+        {
+            return Some(path);
+        }
+    }
+    if depth == 0 {
+        return None;
+    }
+    subdirs.into_iter().find_map(|d| find_file(&d, name, depth - 1))
+}
+
+/// Pakiet npm `@openai/codex`: natywna binarka w środku (`vendor\…`) albo
+/// w pakiecie platformowym obok (`@openai/codex-win32-x64`), a gdy jej nie
+/// ma — `node bin/codex.js`. `shim_dir` to katalog z `codex.cmd`; przy nvm
+/// leży tam też `node.exe`.
+fn from_package(package: &Path, shim_dir: Option<&Path>) -> Option<Cli> {
+    if !package.is_dir() {
+        return None;
+    }
+    if let Some(found) = find_file(package, exe_name(), 7) {
+        return Some(native(found));
+    }
+    if let Some(scope) = package.parent() {
+        let siblings = std::fs::read_dir(scope).ok().into_iter().flatten().flatten();
+        for sibling in siblings {
+            let name = sibling.file_name().to_string_lossy().to_lowercase();
+            if name.starts_with("codex-") {
+                if let Some(found) = find_file(&sibling.path(), exe_name(), 7) {
+                    return Some(native(found));
+                }
+            }
+        }
+    }
+    let script = package.join("bin").join("codex.js");
+    if !script.is_file() {
+        return None;
+    }
+    let node_name = if cfg!(windows) { "node.exe" } else { "node" };
+    let node = shim_dir
+        .map(|d| d.join(node_name))
+        .filter(|p| p.is_file())
+        .or_else(|| search_dirs().into_iter().map(|d| d.join(node_name)).find(|p| p.is_file()))?;
+    Some(Cli {
+        program: node,
+        prefix: vec![script.to_string_lossy().into_owned()],
     })
 }
 
-pub fn locate_cli() -> Option<Cli> {
-    let exe = if cfg!(windows) { "codex.exe" } else { "codex" };
-    let native = |program: PathBuf| Cli {
-        program,
-        prefix: Vec::new(),
-    };
-    if let Some(found) = on_path(exe) {
+fn npm_package(prefix: &Path) -> PathBuf {
+    prefix.join("node_modules").join("@openai").join("codex")
+}
+
+/// Wskazany plik albo katalog: `codex.exe`, shim npm (`codex.cmd`,
+/// `codex.ps1`, `codex`), `codex.js` albo katalog pakietu.
+fn from_path(path: &Path) -> Option<Cli> {
+    if path.is_dir() {
+        return from_package(path, None)
+            .or_else(|| from_package(&npm_package(path), Some(path)))
+            .or_else(|| Some(path.join(exe_name())).filter(|p| p.is_file()).map(native));
+    }
+    if !path.is_file() {
+        return None;
+    }
+    let ext = path
+        .extension()
+        .map(|e| e.to_string_lossy().to_lowercase())
+        .unwrap_or_default();
+    let dir = path.parent()?;
+    match ext.as_str() {
+        "exe" => Some(native(path.to_path_buf())),
+        "js" | "mjs" => from_package(dir.parent()?, None),
+        "cmd" | "ps1" | "bat" => from_package(&npm_package(dir), Some(dir)),
+        _ if cfg!(windows) => from_package(&npm_package(dir), Some(dir)),
+        _ => Some(native(path.to_path_buf())),
+    }
+}
+
+/// `custom`: ścieżka z Ustawień (gdy sami nie znajdziemy).
+pub fn locate_cli(custom: &str) -> Option<Cli> {
+    let custom = custom.trim().trim_matches('"');
+    if !custom.is_empty() {
+        if let Some(cli) = from_path(Path::new(custom)) {
+            return Some(cli);
+        }
+    }
+    let dirs = search_dirs();
+    // Natywna binarka w PATH (instalator, winget, scoop).
+    if let Some(found) = dirs.iter().map(|d| d.join(exe_name())).find(|p| p.is_file()) {
         return Some(native(found));
+    }
+    // Shim npm w PATH — prefiks bywa różny (nvm, własny `npm config prefix`).
+    for dir in &dirs {
+        for shim in ["codex.cmd", "codex.ps1"] {
+            if dir.join(shim).is_file() {
+                if let Some(cli) = from_package(&npm_package(dir), Some(dir)) {
+                    return Some(cli);
+                }
+            }
+        }
+    }
+    // Domyślny prefiks npm, nawet gdy nie ma go w PATH.
+    if let Some(prefix) = dirs::data_dir().map(|d| d.join("npm")) {
+        if let Some(cli) = from_package(&npm_package(&prefix), Some(&prefix)) {
+            return Some(cli);
+        }
     }
     let home = dirs::home_dir().unwrap_or_default();
     let mut candidates = vec![
-        home.join(".codex").join("bin").join(exe),
-        home.join(".local").join("bin").join(exe),
+        home.join(".codex").join("bin").join(exe_name()),
+        home.join(".local").join("bin").join(exe_name()),
+        home.join("scoop").join("shims").join(exe_name()),
     ];
     if let Some(local) = dirs::data_local_dir() {
-        candidates.push(local.join("Programs").join("codex").join(exe));
-        candidates.push(local.join("Microsoft").join("WinGet").join("Links").join(exe));
+        candidates.push(local.join("Programs").join("codex").join(exe_name()));
+        candidates.push(local.join("Programs").join("OpenAI").join("Codex").join(exe_name()));
+        candidates.push(local.join("Microsoft").join("WinGet").join("Links").join(exe_name()));
     }
-    if let Some(found) = candidates.into_iter().find(|p| p.is_file()) {
-        return Some(native(found));
-    }
-    // npm: %APPDATA%\npm\node_modules\@openai\codex — w środku natywna
-    // binarka (vendor\<target>\codex\codex.exe) i skrypt startowy dla node.
-    let package = dirs::data_dir()?
-        .join("npm")
-        .join("node_modules")
-        .join("@openai")
-        .join("codex");
-    let vendored = ["x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc"]
-        .iter()
-        .map(|t| package.join("vendor").join(t).join("codex").join(exe))
-        .find(|p| p.is_file());
-    if let Some(found) = vendored {
-        return Some(native(found));
-    }
-    let script = package.join("bin").join("codex.js");
-    if script.is_file() {
-        let node = on_path(if cfg!(windows) { "node.exe" } else { "node" })?;
-        return Some(Cli {
-            program: node,
-            prefix: vec![script.to_string_lossy().into_owned()],
-        });
-    }
-    None
+    candidates.into_iter().find(|p| p.is_file()).map(native)
 }
 
 pub const MISSING: &str = "Nie znalazłem Codex CLI. Zainstaluj: w terminalu `npm i -g @openai/codex`, \
-potem `codex login` (konto ChatGPT). Albo wybierz Claude Code lub API.";
+potem `codex login` (konto ChatGPT). Jeśli jest zainstalowany: w PowerShell wpisz `where.exe codex` \
+i wklej ścieżkę w Ustawienia → „Ścieżka do Codex”. Albo wybierz Claude Code lub API.";
 
 /// Katalog roboczy Codexa: pusty, żeby agent nie miał czego czytać.
 fn workdir() -> PathBuf {
@@ -151,13 +311,14 @@ fn explain(stderr: &str, fallback: String) -> String {
 /// nowszych wersjach CLI cała odpowiedź naraz.
 pub async fn ask(
     prompt: &str,
+    custom_path: &str,
     model: &str,
     effort: &str,
     image: Option<&Image>,
     timeout: Duration,
     mut on_delta: impl FnMut(&str),
 ) -> Result<String, String> {
-    let cli = locate_cli().ok_or(MISSING)?;
+    let cli = locate_cli(custom_path).ok_or(MISSING)?;
     let dir = workdir();
     let stamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -302,6 +463,59 @@ mod tests {
         assert!(matches!(parse(delta), Event::Delta(t) if t == "Go"));
         let full = r#"{"id":"0","msg":{"type":"agent_message","message":"Gotowe."}}"#;
         assert!(matches!(parse(full), Event::Message(t) if t == "Gotowe."));
+    }
+
+    fn temp(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("cw-codex-test-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn touch(path: &Path) {
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, b"").unwrap();
+    }
+
+    #[test]
+    fn finds_binary_vendored_in_npm_package() {
+        let prefix = temp("vendored");
+        let exe = npm_package(&prefix).join("vendor").join("x86_64-pc-windows-msvc").join("codex").join(exe_name());
+        touch(&exe);
+        touch(&prefix.join("codex.cmd"));
+        let cli = from_path(&prefix.join("codex.cmd")).expect("found");
+        assert_eq!(cli.program, exe);
+        assert!(cli.prefix.is_empty());
+    }
+
+    #[test]
+    fn finds_binary_in_platform_package_next_to_main() {
+        let prefix = temp("platform");
+        let package = npm_package(&prefix);
+        touch(&package.join("bin").join("codex.js"));
+        let exe = package.parent().unwrap().join("codex-win32-x64").join("vendor").join("bin").join(exe_name());
+        touch(&exe);
+        assert_eq!(from_package(&package, Some(&prefix)).unwrap().program, exe);
+    }
+
+    #[test]
+    fn falls_back_to_node_script_with_node_next_to_shim() {
+        let prefix = temp("script");
+        let script = npm_package(&prefix).join("bin").join("codex.js");
+        touch(&script);
+        let node = prefix.join(if cfg!(windows) { "node.exe" } else { "node" });
+        touch(&node);
+        let cli = from_path(&prefix).expect("found");
+        assert_eq!(cli.program, node);
+        assert_eq!(cli.prefix, vec![script.to_string_lossy().into_owned()]);
+    }
+
+    #[test]
+    fn expands_registry_variables() {
+        std::env::set_var("CW_TEST_DIR", "C:/Users/x");
+        assert_eq!(expand("%CW_TEST_DIR%/npm"), "C:/Users/x/npm");
+        assert_eq!(expand("%NIE_MA_TAKIEJ%/a"), "%NIE_MA_TAKIEJ%/a");
+        assert_eq!(expand("bez zmiennych"), "bez zmiennych");
     }
 
     #[test]

@@ -277,15 +277,17 @@ impl Recorder {
             action_label: None,
         });
         if settings.assistant_enabled && settings.assistant_backend == AssistantBackend::Codex {
-            let found = crate::codex::locate_cli().is_some();
+            let found = crate::codex::locate_cli(&settings.codex_path);
             checks.push(Check {
                 id: "codex",
                 title: "Codex CLI (ChatGPT)".into(),
-                ok: found,
-                detail: if found {
-                    "Znaleziony. Przy błędzie logowania: w terminalu `codex login`.".into()
-                } else {
-                    crate::codex::MISSING.into()
+                ok: found.is_some(),
+                detail: match &found {
+                    Some(cli) => format!(
+                        "Znaleziony: {}. Przy błędzie logowania: w terminalu `codex login`.",
+                        cli.describe()
+                    ),
+                    None => crate::codex::MISSING.into(),
                 },
                 action: None,
                 action_label: None,
@@ -560,7 +562,7 @@ impl Recorder {
         // lepiej zgłosić przy starcie niż przy pierwszym pytaniu.
         if settings.assistant_enabled
             && settings.assistant_backend == AssistantBackend::Codex
-            && crate::codex::locate_cli().is_none()
+            && crate::codex::locate_cli(&settings.codex_path).is_none()
         {
             self.set_error(crate::codex::MISSING);
             return;
@@ -1015,6 +1017,7 @@ impl Recorder {
                     let sink_id = id.clone();
                     crate::codex::ask(
                         &prompt,
+                        &settings.codex_path,
                         &settings.codex_model,
                         &settings.codex_effort,
                         image.as_ref(),
@@ -1114,6 +1117,7 @@ impl Recorder {
             AssistantBackend::Codex => {
                 crate::codex::ask(
                     &prompt,
+                    &settings.codex_path,
                     &settings.codex_model,
                     &settings.codex_effort,
                     None,
