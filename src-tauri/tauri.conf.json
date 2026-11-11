@@ -1,7 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "brqs-whisper",
-  "mainBinaryName": "brqs-whisper",
+  "productName": "call-whisper",
   "version": "0.1.0",
   "identifier": "ai.callwhisper.windows",
   "build": {
@@ -12,7 +11,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "brqs-whisper",
+        "title": "call-whisper",
         "width": 980,
         "height": 680,
         "minWidth": 720,

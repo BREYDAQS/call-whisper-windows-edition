@@ -348,14 +348,14 @@ fn spawn_meeting_watcher(app: tauri::AppHandle) {
                             .notification()
                             .builder()
                             .title(format!("Słucham rozmowy w {name}"))
-                            .body("Transkrypt zbiera się w brqs-whisper.")
+                            .body("Transkrypt zbiera się w call-whisper.")
                             .show();
                     } else {
                         let _ = app
                             .notification()
                             .builder()
                             .title(format!("Wykryto rozmowę w {name}"))
-                            .body("Zapisać transkrypt? Kliknij „Słuchaj” w brqs-whisper.")
+                            .body("Zapisać transkrypt? Kliknij „Słuchaj” w call-whisper.")
                             .show();
                     }
                 }
@@ -371,9 +371,10 @@ fn spawn_meeting_watcher(app: tauri::AppHandle) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Przed wtyczką pojedynczej instancji: stara call-whisper ma ten sam
+    // Przed wtyczką pojedynczej instancji: stara brqs-whisper ma ten sam
     // identyfikator i inaczej to ona zostałaby pokazana zamiast nowej.
     legacy::close_old_instances();
+    legacy::move_transcripts();
     tauri::Builder::default()
         // Druga kopia aplikacji ma tylko pokazać pierwszą: dwa nasłuchy naraz
         // biłyby się o port whispera.
@@ -407,7 +408,7 @@ pub fn run() {
                 follow_obs(rec, obs_rx).await;
             });
             updater::spawn(app.handle().clone());
-            // Pozostałości po call-whisper — w tle, po chwili (zamknięta
+            // Pozostałości po brqs-whisper — w tle, po chwili (zamknięta
             // przed startem stara apka musi zwolnić pliki).
             std::thread::spawn(|| {
                 std::thread::sleep(std::time::Duration::from_secs(3));
@@ -450,7 +451,7 @@ pub fn run() {
             open_folder,
         ])
         .build(tauri::generate_context!())
-        .expect("błąd uruchamiania brqs-whisper")
+        .expect("błąd uruchamiania call-whisper")
         .run(|app, event| {
             // Wyjście w trakcie dyktowania nie może zostawić wyciszonego systemu.
             if let tauri::RunEvent::Exit = event {

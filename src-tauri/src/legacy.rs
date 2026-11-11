@@ -1,12 +1,14 @@
-//! Sprzątanie po dawnej nazwie (call-whisper -> brqs-whisper).
+//! Sprzątanie po dawnej nazwie (brqs-whisper -> z powrotem call-whisper).
 //!
 //! Zmiana nazwy produktu sprawiła, że nowy instalator kładzie się obok
 //! starego, zamiast go zastąpić. Zostawały: stara aplikacja w
-//! %LOCALAPPDATA%\call-whisper, jej skróty i wpis w „Aplikacje i funkcje".
+//! %LOCALAPPDATA%\brqs-whisper, jej skróty i wpis w „Aplikacje i funkcje".
 //!
 //! Dane zostają tam, gdzie były: ustawienia (%APPDATA%\call-whisper),
-//! modele i logi (%LOCALAPPDATA%\call-whisper\models, \logs) — nowa apka
-//! z nich korzysta. Usuwamy tylko pliki starej aplikacji.
+//! modele i logi (%LOCALAPPDATA%\call-whisper\models, \logs) — brqs-whisper
+//! też z nich korzystała. W %LOCALAPPDATA%\brqs-whisper leżą tylko pliki
+//! starej aplikacji. Jedyne dane pod starą nazwą to transkrypty
+//! (Dokumenty\brqs-whisper) — przenosimy je.
 
 /// Działająca stara apka ma ten sam identyfikator, więc wtyczka pojedynczej
 /// instancji pokazałaby ją zamiast uruchomić nową. Dlatego zamykamy ją, zanim
@@ -22,7 +24,7 @@ pub fn close_old_instances() {
         PROCESS_TERMINATE,
     };
 
-    let Some(old_dir) = dirs::data_local_dir().map(|d| d.join("call-whisper")) else {
+    let Some(old_dir) = dirs::data_local_dir().map(|d| d.join("brqs-whisper")) else {
         return;
     };
     let me = std::process::id();
@@ -38,9 +40,9 @@ pub fn close_old_instances() {
         while ok {
             let len = entry.szExeFile.iter().position(|&c| c == 0).unwrap_or(entry.szExeFile.len());
             let name = String::from_utf16_lossy(&entry.szExeFile[..len]);
-            // Nowa apka to brqs-whisper.exe. Zamykamy tylko call-whisper.exe
+            // Nowa apka to call-whisper.exe. Zamykamy tylko brqs-whisper.exe
             // ze starego folderu instalacji — nie wersję deweloperską z cargo.
-            if name.eq_ignore_ascii_case("call-whisper.exe") && entry.th32ProcessID != me {
+            if name.eq_ignore_ascii_case("brqs-whisper.exe") && entry.th32ProcessID != me {
                 let process = OpenProcess(
                     PROCESS_TERMINATE | PROCESS_QUERY_LIMITED_INFORMATION,
                     0,
@@ -70,12 +72,32 @@ pub fn close_old_instances() {
 #[cfg(not(windows))]
 pub fn close_old_instances() {}
 
+/// Dokumenty\brqs-whisper -> Dokumenty\call-whisper, gdy folder transkryptów
+/// jest domyślny, a nowego jeszcze nie ma. Przed startem nagrywania, żeby
+/// pierwszy zapis nie założył pustego nowego folderu.
+#[cfg(windows)]
+pub fn move_transcripts() {
+    if !crate::settings::Settings::load().transcripts_dir.trim().is_empty() {
+        return;
+    }
+    let new = crate::settings::default_transcripts_dir();
+    let Some(old) = new.parent().map(|p| p.join("brqs-whisper")) else {
+        return;
+    };
+    if old.is_dir() && !new.exists() {
+        let _ = std::fs::rename(&old, &new);
+    }
+}
+
+#[cfg(not(windows))]
+pub fn move_transcripts() {}
+
 /// Usuwa pliki, skróty i wpis deinstalacji starej aplikacji. Najlepszym
 /// wysiłkiem: co się nie uda (plik zablokowany), spróbujemy przy kolejnym
 /// starcie.
 #[cfg(windows)]
 pub fn cleanup() {
-    let Some(local) = dirs::data_local_dir().map(|d| d.join("call-whisper")) else {
+    let Some(local) = dirs::data_local_dir().map(|d| d.join("brqs-whisper")) else {
         return;
     };
     // Gdyby ta kopia sama działała ze starego folderu — nic nie ruszamy.
@@ -85,48 +107,38 @@ pub fn cleanup() {
     {
         return;
     }
-    // Pliki starej aplikacji; models\ i logs\ w tym samym folderze zostają.
-    for file in ["call-whisper.exe", "uninstall.exe"] {
-        let _ = std::fs::remove_file(local.join(file));
-    }
-    // Silniki starej instalacji (resources). Nowa ma własne w swoim folderze.
-    let vendor = local.join("vendor");
-    if vendor.join("whisper").is_dir() || vendor.join("ffmpeg").is_dir() {
-        let _ = std::fs::remove_dir_all(&vendor);
-    }
+    // Cały folder starej instalacji: danych w nim nie było (patrz wyżej).
+    let _ = std::fs::remove_dir_all(&local);
 
     if let Some(roaming) = dirs::data_dir() {
         let shortcuts = [
-            roaming.join(r"Microsoft\Windows\Start Menu\Programs\call-whisper.lnk"),
-            roaming.join(r"Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar\call-whisper.lnk"),
+            roaming.join(r"Microsoft\Windows\Start Menu\Programs\brqs-whisper.lnk"),
+            roaming.join(r"Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar\brqs-whisper.lnk"),
         ];
         for shortcut in shortcuts {
             let _ = std::fs::remove_file(shortcut);
         }
     }
     if let Some(desktop) = dirs::desktop_dir() {
-        let _ = std::fs::remove_file(desktop.join("call-whisper.lnk"));
+        let _ = std::fs::remove_file(desktop.join("brqs-whisper.lnk"));
     }
 
     use winreg::enums::HKEY_CURRENT_USER;
     use winreg::RegKey;
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
     // Wpis w „Aplikacje i funkcje" — tylko jeśli to na pewno stara apka.
-    let uninstall = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\call-whisper";
+    let uninstall = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\brqs-whisper";
     let is_old: bool = hkcu
         .open_subkey(uninstall)
         .ok()
         .and_then(|k| k.get_value::<String, _>("DisplayName").ok())
-        .is_some_and(|name| name.eq_ignore_ascii_case("call-whisper"));
+        .is_some_and(|name| name.eq_ignore_ascii_case("brqs-whisper"));
     if is_old {
         let _ = hkcu.delete_subkey_all(uninstall);
     }
-    // Klucz instalatora NSIS starej apki (Software\<wydawca>\call-whisper).
-    if hkcu.open_subkey(r"Software\callwhisper\call-whisper").is_ok() {
-        let _ = hkcu.delete_subkey_all(r"Software\callwhisper\call-whisper");
-        // Pusty klucz wydawcy też — `delete_subkey` nie usunie niepustego.
-        let _ = hkcu.delete_subkey(r"Software\callwhisper");
-    }
+    // Klucz instalatora NSIS starej apki. Wydawca (Software\callwhisper)
+    // zostaje — pod nim jest też klucz nowej call-whisper.
+    let _ = hkcu.delete_subkey_all(r"Software\callwhisper\brqs-whisper");
 }
 
 #[cfg(not(windows))]

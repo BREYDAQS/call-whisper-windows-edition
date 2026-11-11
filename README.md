@@ -1,11 +1,11 @@
-# brqs-whisper — Windows
+# call-whisper — Windows
 
 Transkrypcja rozmów na żywo (whisper.cpp, lokalnie) z podpowiedziami. Port
 aplikacji macOS z [vibebrosi-main/whisper](https://github.com/vibebrosi-main/whisper).
 
 ## Instalacja
 
-Pobierz `brqs-whisper_*_x64-setup.exe` z [Releases](../../releases/latest)
+Pobierz `call-whisper_*_x64-setup.exe` z [Releases](../../releases/latest)
 i uruchom. Instalator wiezie silnik mowy (Vulkan na każde GPU, zapasowo CPU)
 ffmpeg i rozpoznawanie głosów (sherpa-onnx). Model mowy (~490 MB) pobiera się przy pierwszym „Słuchaj".
 
@@ -43,7 +43,7 @@ Testy rdzenia: `cargo test -p cw-core`.
   schowka, wyciszanie dźwięku systemu, pigułka u dołu ekranu, gotowość i próba 3 s
 - [x] Podpowiedzi przez Codex CLI (ChatGPT, bez klucza): `npm i -g @openai/codex`,
   potem `codex login`; w Ustawieniach „Skąd biorą się podpowiedzi” → Codex
-- [x] Transkrypty zapisują się same jako .md (Dokumenty\\brqs-whisper), przycisk „Folder”
+- [x] Transkrypty zapisują się same jako .md (Dokumenty\\call-whisper), przycisk „Folder”
 - [x] Tekst na żywo do wyłączenia (domyślnie wył. — mniej obciążenia w rozmowie)
 - [ ] Parakeet na żywo, analiza rozmowy przez Claude Code, biblioteka modeli
 

@@ -787,7 +787,7 @@ impl Recorder {
         self.inner.lock().unwrap().processing = Some(task);
     }
 
-    /// Folder z transkryptami: z ustawień albo Dokumenty\brqs-whisper.
+    /// Folder z transkryptami: z ustawień albo Dokumenty\call-whisper.
     pub fn transcripts_dir(&self) -> PathBuf {
         let custom = self.settings().transcripts_dir;
         if custom.trim().is_empty() {
